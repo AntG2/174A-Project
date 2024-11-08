@@ -62,8 +62,8 @@ scene.add(frontWall);
 
 const custom_cube_geometry = new THREE.BoxGeometry(l, l, l);
 
-let cube = new THREE.Mesh( custom_cube_geometry, phong_material );
-scene.add(cube);
+let player = new THREE.Mesh( custom_cube_geometry, phong_material );
+scene.add(player);
 
 camera.position.set(0, 10*l, 0);
 controls.target.set(0, 0, 0);
@@ -170,10 +170,16 @@ function clampCameraPosition() {
     camera.position.z = Math.max(minZ, Math.min(maxZ, camera.position.z));
 }
 
+function updateCameraPosition() {
+    camera.position.x = player.position.x;
+    camera.position.z = player.position.z;
+    camera.lookAt(player.position);
+}
+
 function animate() {
     renderer.render( scene, camera );
     controls.update();
-
+    updateCameraPosition();
     clampCameraPosition();
     // TODO
     // Animate the cube
@@ -192,15 +198,31 @@ function animate() {
 }
 renderer.setAnimationLoop( animate );
 
-// TODO: Add event listener
-let still = false;
-window.addEventListener('keydown', onKeyPress); // onKeyPress is called each time a key is pressed
-// Function to handle keypress
-function onKeyPress(event) {
-    switch (event.key) {
-        case 's': // Note we only do this if s is pressed.
-            break;
-        default:
-            console.log(`Key ${event.key} pressed`);
-    }
+function movePlayer(dx, dz) {
+    const newX = player.position.x + dx;
+    const newZ = player.position.z + dz;
+
+    //if (checkCollision(newX, newZ)) {
+    player.position.x = newX;
+    player.position.z = newZ;
+    //}
 }
+
+// Event listener for keyboard controls
+document.addEventListener('keydown', (event) => {
+    const moveDistance = 0.1;
+    switch (event.key) {
+        case 'w':
+            movePlayer(0, -moveDistance);
+            break;
+        case 's':
+            movePlayer(0, moveDistance);
+            break;
+        case 'a':
+            movePlayer(-moveDistance, 0);
+            break;
+        case 'd':
+            movePlayer(moveDistance, 0);
+            break;
+    }
+});
