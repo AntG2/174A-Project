@@ -29,7 +29,7 @@ function createPlane(width, height, color, rotationX, positionY) {
 }
 
 const boxSize = 100
-const l = 0.5
+const l = 0.4
 const mazeHeight = 20
 const mazeBoxSize = 1
 
@@ -58,13 +58,6 @@ const frontWall = createPlane(boxSize, boxSize, 0xA0A0A0, 0, boxSize / 2 - l);
 frontWall.position.z = boxSize / 2;
 scene.add(frontWall);
 
-
-
-const custom_cube_geometry = new THREE.BoxGeometry(l, l, l);
-
-let player = new THREE.Mesh( custom_cube_geometry, phong_material );
-scene.add(player);
-
 camera.position.set(0, 10*l, 0);
 controls.target.set(0, 0, 0);
 
@@ -91,7 +84,7 @@ const maze_ex = [
 function createMaze(maze) {
     const wallGeometry = new THREE.BoxGeometry(mazeBoxSize, mazeHeight, mazeBoxSize);
     const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xf0f0f0 });
-
+    const emptySpaces = [];
     for (let i = 0; i < maze.length; i++) {
         for (let j = 0; j < maze[i].length; j++) {
             if (maze[i][j] === 1) {
@@ -102,11 +95,46 @@ function createMaze(maze) {
                     i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
                 );
                 scene.add(wall);
-            }
+            } else { // maze[i][j] == 0
+		emptySpaces.push({x: j, z: i});
+	    }
+		
         }
     }
+    return emptySpaces
+	
 }
-createMaze(maze_ex);
+
+function placePlayerRandomly(empty, player, maze) {
+    const numEmpty = empty.length
+    if (numEmpty === 0) {
+        console.error("No empty spaces in the maze!");
+        return;
+    }
+
+    const randomSpace = empty[Math.floor(Math.random() * numEmpty)];
+    
+    const offsetX = -maze[0].length * mazeBoxSize / 2;
+    const offsetZ = -maze.length * mazeBoxSize / 2;
+
+    player.position.set(
+        randomSpace.x * mazeBoxSize + offsetX,
+        player.position.y, // Keep the current Y position
+        randomSpace.z * mazeBoxSize + offsetZ
+    );
+}
+
+
+const emptySpaces = createMaze(maze_ex);
+
+const player = new THREE.Mesh(
+    new THREE.SphereGeometry(l, 32, 32),
+    new THREE.MeshPhongMaterial({color: 0xff0000})
+);
+scene.add(player);
+
+placePlayerRandomly(emptySpaces, player, maze_ex); 
+
 
 // Setting up the lights
 const pointLight = new THREE.PointLight(0xffffff, 100, 100);
@@ -170,7 +198,7 @@ function clampCameraPosition() {
     camera.position.z = Math.max(minZ, Math.min(maxZ, camera.position.z));
 }
 
-function updateCameraPosition() {
+function updateCameraPosition() { 
     camera.position.x = player.position.x;
     camera.position.z = player.position.z;
     camera.lookAt(player.position);
@@ -210,7 +238,7 @@ function movePlayer(dx, dz) {
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
-    const moveDistance = 0.1;
+    const moveDistance = 0.05;
     switch (event.key) {
         case 'w':
             movePlayer(0, -moveDistance);
