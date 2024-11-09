@@ -190,8 +190,14 @@ function updateCameraPosition() {
     console.log(playerPosition);
 }
 
+const moveDistance = 0.03;
+
 function animate() {
     renderer.render( scene, camera );
+    let matrix = new THREE.Matrix4();
+    matrix.copy(player.matrix);
+    movePlayer(direction);
+    
     updateCameraPosition();
     clampCameraPosition();
     delta_animation_time = clock.getDelta();
@@ -203,25 +209,36 @@ renderer.setAnimationLoop( animate );
 
 
 
-function movePlayer(dx, dz) {
+function movePlayer(direction) {
+    let dx = 0;
+    let dz = 0;
+    if (direction == up) {
+	dz = -moveDistance;
+    } else if (direction == down) {
+	dz = moveDistance;
+    } else if (direction == left) {
+	dx = -moveDistance;
+    } else if (direction == right) {
+	dx = moveDistance;
+    }
+    
     player.applyMatrix4(translationMatrix(dx, 0, dz));
 }
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
-    const moveDistance = 0.05;
     switch (event.key) {
         case 'w':
-            movePlayer(0, -moveDistance);
+            direction = up;
             break;
         case 's':
-            movePlayer(0, moveDistance);
+            direction = down;
             break;
         case 'a':
-            movePlayer(-moveDistance, 0);
+            direction = left;
             break;
         case 'd':
-            movePlayer(moveDistance, 0);
+            direction = right;
             break;
     }
 });
