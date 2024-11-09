@@ -71,7 +71,7 @@ const maze_ex = [
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1],
@@ -80,11 +80,13 @@ const maze_ex = [
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
-
+const player = new THREE.Mesh(
+		    new THREE.SphereGeometry(l, 32, 32),
+		    new THREE.MeshPhongMaterial({color: 0xff0000})
+		);
 function createMaze(maze) {
     const wallGeometry = new THREE.BoxGeometry(mazeBoxSize, mazeHeight, mazeBoxSize);
     const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xf0f0f0 });
-    const emptySpaces = [];
     for (let i = 0; i < maze.length; i++) {
         for (let j = 0; j < maze[i].length; j++) {
             if (maze[i][j] === 1) {
@@ -95,46 +97,20 @@ function createMaze(maze) {
                     i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
                 );
                 scene.add(wall);
-            } else { // maze[i][j] == 0
-		emptySpaces.push({x: j, z: i});
+            } else if (maze[i][j] == 2) {
+		player.position.set(
+		    j * mazeBoxSize - (maze[0].length * mazeBoxSize / 2), 
+                    0, 
+                    i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
+                );
+		scene.add(player);
 	    }
 		
         }
     }
-    return emptySpaces
 	
 }
-
-function placePlayerRandomly(empty, player, maze) {
-    const numEmpty = empty.length
-    if (numEmpty === 0) {
-        console.error("No empty spaces in the maze!");
-        return;
-    }
-
-    const randomSpace = empty[Math.floor(Math.random() * numEmpty)];
-    
-    const offsetX = -maze[0].length * mazeBoxSize / 2;
-    const offsetZ = -maze.length * mazeBoxSize / 2;
-
-    player.position.set(
-        randomSpace.x * mazeBoxSize + offsetX,
-        player.position.y, // Keep the current Y position
-        randomSpace.z * mazeBoxSize + offsetZ
-    );
-}
-
-
-const emptySpaces = createMaze(maze_ex);
-
-const player = new THREE.Mesh(
-    new THREE.SphereGeometry(l, 32, 32),
-    new THREE.MeshPhongMaterial({color: 0xff0000})
-);
-scene.add(player);
-
-placePlayerRandomly(emptySpaces, player, maze_ex); 
-
+createMaze(maze_ex);
 
 // Setting up the lights
 const pointLight = new THREE.PointLight(0xffffff, 100, 100);
@@ -183,12 +159,12 @@ const cube_size = 2 * l;
 const minX = -boxSize / 2;
 const maxX = boxSize / 2;
 const minY = 0;
-const maxY = mazeHeight / 4;
+const maxY = mazeHeight*2; 
 const minZ = -boxSize / 2;
 const maxZ = boxSize / 2;
 
-controls.enableRotate = false;
-controls.enableZoom = false;
+//controls.enableRotate = false;
+//controls.enableZoom = false;
 
 function clampCameraPosition() {
     camera.position.x = Math.max(minX, Math.min(maxX, camera.position.x));
