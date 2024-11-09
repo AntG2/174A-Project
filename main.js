@@ -11,8 +11,6 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
-const controls = new OrbitControls(camera, renderer.domElement);
-
 const phong_material = new THREE.MeshPhongMaterial({
     color: 0xffffff, // White color
     shininess: 100   // Shininess of the material
@@ -59,8 +57,6 @@ frontWall.position.z = boxSize / 2;
 scene.add(frontWall);
 
 camera.position.set(0, 10*l, 0);
-controls.target.set(0, 0, 0);
-
 
 // Setting up the maze
 const maze_ex = [
@@ -71,10 +67,10 @@ const maze_ex = [
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1],
+    [1, 0, 1, 0, 1, 0, 1, 2, 1, 0, 1, 1, 1, 1, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -98,12 +94,13 @@ function createMaze(maze) {
                 );
                 scene.add(wall);
             } else if (maze[i][j] == 2) {
-		player.position.set(
+		player.matrix.copy(translationMatrix(
 		    j * mazeBoxSize - (maze[0].length * mazeBoxSize / 2), 
                     0, 
                     i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
-                );
+                ));
 		scene.add(player);
+		player.matrixAutoUpdate = false;
 	    }
 		
         }
@@ -166,41 +163,48 @@ const maxZ = boxSize / 2;
 //controls.enableRotate = false;
 //controls.enableZoom = false;
 
+const still = 0;
+const up = 1;
+const left = 2;
+const down = 3;
+const right = 4;
+let direction = still;
+
 function clampCameraPosition() {
     camera.position.x = Math.max(minX, Math.min(maxX, camera.position.x));
     camera.position.y = Math.max(minY, Math.min(maxY, camera.position.y));
     camera.position.z = Math.max(minZ, Math.min(maxZ, camera.position.z));
 }
-
+const offsetMatrix = new THREE.Matrix4().makeTranslation(0, mazeHeight / 4, 0); // Adjust values as needed
 function updateCameraPosition() { 
-    camera.position.x = player.position.x;
-    camera.position.z = player.position.z;
-    camera.lookAt(player.position);
+    let cameraMatrix = new THREE.Matrix4();
+    cameraMatrix.copy(player.matrix);
+    cameraMatrix.multiply(offsetMatrix);
+    let cameraPosition = new THREE.Vector3();
+    cameraPosition.setFromMatrixPosition(cameraMatrix);
+    console.log(cameraPosition);
+    camera.position.copy(cameraPosition);
+    let playerPosition = new THREE.Vector3();
+    playerPosition.setFromMatrixPosition(player.matrix);
+    camera.lookAt(playerPosition);
+    console.log(playerPosition);
 }
 
 function animate() {
     renderer.render( scene, camera );
-    controls.update();
     updateCameraPosition();
     clampCameraPosition();
     delta_animation_time = clock.getDelta();
     animation_time += delta_animation_time;
     
 
-    
-   
-
 }
 renderer.setAnimationLoop( animate );
 
-function movePlayer(dx, dz) {
-    const newX = player.position.x + dx;
-    const newZ = player.position.z + dz;
 
-    //if (checkCollision(newX, newZ)) {
-    player.position.x = newX;
-    player.position.z = newZ;
-    //}
+
+function movePlayer(dx, dz) {
+    player.applyMatrix4(translationMatrix(dx, 0, dz));
 }
 
 // Event listener for keyboard controls
