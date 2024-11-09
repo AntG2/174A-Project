@@ -183,14 +183,12 @@ const cube_size = 2 * l;
 const minX = -boxSize / 2;
 const maxX = boxSize / 2;
 const minY = 0;
-const maxY = mazeHeight / 3;
+const maxY = mazeHeight / 4;
 const minZ = -boxSize / 2;
 const maxZ = boxSize / 2;
 
-controls.minPolarAngle = 0; // Minimum vertical rotation
-controls.maxPolarAngle = 0; // Maximum vertical rotation (horizontal view)
-controls.minDistance = 1; // Minimum zoom distance
-controls.maxDistance = boxSize / 2; // Maximum zoom distance
+controls.enableRotate = false;
+controls.enableZoom = false;
 
 function clampCameraPosition() {
     camera.position.x = Math.max(minX, Math.min(maxX, camera.position.x));
@@ -209,15 +207,8 @@ function animate() {
     controls.update();
     updateCameraPosition();
     clampCameraPosition();
-    // TODO
-    // Animate the cube
     delta_animation_time = clock.getDelta();
     animation_time += delta_animation_time;
-    // ...
-    // feel free to add other auxiliary variables if needed.
-    
-    
-    // angle = amp * sin (ang_freq * time) + offset
     
 
     
