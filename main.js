@@ -292,6 +292,7 @@ document.addEventListener('keydown', (event) => {
             direction = down;
 	} else if (cameraMode === 2) {
 	    playerRotation += Math.PI;
+	    direction = up;
 	}
         break;
     case 'a':
