@@ -60,20 +60,20 @@ camera.position.set(0, 10*l, 0);
 
 // Setting up the maze
 const maze_ex = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 2, 1, 0, 1, 1, 1, 1, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 const player = new THREE.Mesh(
@@ -100,6 +100,7 @@ function createMaze(maze) {
                     i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
                 ));
 		scene.add(player);
+		
 		player.matrixAutoUpdate = false;
 	    }
 		
@@ -160,8 +161,6 @@ const maxY = mazeHeight*2;
 const minZ = -boxSize / 2;
 const maxZ = boxSize / 2;
 
-//controls.enableRotate = false;
-//controls.enableZoom = false;
 
 const still = 0;
 const up = 1;
@@ -170,24 +169,64 @@ const down = 3;
 const right = 4;
 let direction = still;
 
-function clampCameraPosition() {
-    camera.position.x = Math.max(minX, Math.min(maxX, camera.position.x));
-    camera.position.y = Math.max(minY, Math.min(maxY, camera.position.y));
-    camera.position.z = Math.max(minZ, Math.min(maxZ, camera.position.z));
-}
+let cameraMode = 1 // third person view; mode=2 is first person view
+let last_dx = 0;
+let last_dz = -1;
+
+
+
 const offsetMatrix = new THREE.Matrix4().makeTranslation(0, mazeHeight / 4, 0); // Adjust values as needed
-function updateCameraPosition() { 
-    let cameraMatrix = new THREE.Matrix4();
-    cameraMatrix.copy(player.matrix);
-    cameraMatrix.multiply(offsetMatrix);
-    let cameraPosition = new THREE.Vector3();
-    cameraPosition.setFromMatrixPosition(cameraMatrix);
-    console.log(cameraPosition);
-    camera.position.copy(cameraPosition);
+let currentLookAt = new THREE.Vector3();
+let firstFrame = true;
+
+function updateCameraPosition() {
     let playerPosition = new THREE.Vector3();
     playerPosition.setFromMatrixPosition(player.matrix);
-    camera.lookAt(playerPosition);
-    console.log(playerPosition);
+    if (cameraMode === 1) { // third person
+	let cameraMatrix = new THREE.Matrix4();
+	cameraMatrix.copy(player.matrix);
+	cameraMatrix.multiply(offsetMatrix);
+	let cameraPosition = new THREE.Vector3();
+	cameraPosition.setFromMatrixPosition(cameraMatrix);
+	camera.position.copy(cameraPosition);
+	camera.lookAt(playerPosition);
+	// follow latest player position
+	currentLookAt.lerp(playerPosition, 0.2);
+    } else if (cameraMode === 2) { // first person
+	camera.position.lerp(playerPosition, 0.9);
+	camera.position.y += 2*l;
+	let lookAtPoint = new THREE.Vector3();
+        lookAtPoint.copy(playerPosition);
+        let dx = 0, dz = 0;
+	switch (direction) {
+        case up:
+            dx = -Math.sin(playerRotation);
+            dz = -Math.cos(playerRotation);
+            break;
+        case down:
+            dx = Math.sin(playerRotation);
+            dz = Math.cos(playerRotation);
+            break;
+        case left:
+            dx = -Math.cos(playerRotation);
+            dz = Math.sin(playerRotation);
+            break;
+        case right:
+            dx = Math.cos(playerRotation);
+            dz = -Math.sin(playerRotation);
+            break;
+	case still:
+	    dx = last_dx;
+	    dz = last_dz;
+	}
+	last_dx = dx;
+	last_dz = dz;
+	lookAtPoint.x += dx;
+	lookAtPoint.z += dz;
+	currentLookAt.lerp(lookAtPoint, 0.2);
+	camera.lookAt(currentLookAt);
+    
+    }
 }
 
 const moveDistance = 0.03;
@@ -199,7 +238,7 @@ function animate() {
     movePlayer(direction);
     
     updateCameraPosition();
-    clampCameraPosition();
+    //clampCameraPosition();
     delta_animation_time = clock.getDelta();
     animation_time += delta_animation_time;
     
@@ -208,37 +247,102 @@ function animate() {
 renderer.setAnimationLoop( animate );
 
 
-
 function movePlayer(direction) {
     let dx = 0;
     let dz = 0;
-    if (direction == up) {
-	dz = -moveDistance;
-    } else if (direction == down) {
-	dz = moveDistance;
-    } else if (direction == left) {
-	dx = -moveDistance;
-    } else if (direction == right) {
-	dx = moveDistance;
+    if (cameraMode === 1) {
+	if (direction == up) {
+	    dz = -moveDistance;
+	} else if (direction == down) {
+	    dz = moveDistance;
+	} else if (direction == left) {
+	    dx = -moveDistance;
+	} else if (direction == right) {
+	    dx = moveDistance;
+	}
+    } else if (cameraMode === 2) {
+	if (direction == up) {
+            dx = -Math.sin(playerRotation) * moveDistance;
+            dz = -Math.cos(playerRotation) * moveDistance;
+	} else if (direction == down) {
+            dx = Math.sin(playerRotation) * moveDistance;
+            dz = Math.cos(playerRotation) * moveDistance;
+	} else if (direction == left) {
+            dx = -Math.cos(playerRotation) * moveDistance;
+            dz = Math.sin(playerRotation) * moveDistance;
+	} else if (direction == right) {
+            dx = Math.cos(playerRotation) * moveDistance;
+            dz = -Math.sin(playerRotation) * moveDistance;
+	}
     }
-    
     player.applyMatrix4(translationMatrix(dx, 0, dz));
 }
+
+let playerRotation = 0;
+let lastD = still;
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
     switch (event.key) {
-        case 'w':
-            direction = up;
-            break;
-        case 's':
+    case 'w':
+        direction = up;
+        break;
+    case 's':
+	if (cameraMode === 1) {
             direction = down;
-            break;
-        case 'a':
+	} else if (cameraMode === 2) {
+	    playerRotation += Math.PI;
+	}
+        break;
+    case 'a':
+	if (cameraMode === 1) {
             direction = left;
-            break;
-        case 'd':
-            direction = right;
-            break;
+	} else if (cameraMode === 2) {
+	    playerRotation += Math.PI / 2;
+	}
+        break;
+    case 'd':
+	if (cameraMode === 1) {
+	    direction = right;
+	} else if (cameraMode === 2) {
+	    playerRotation += 3 * Math.PI / 2;
+	}
+        break;
+    case 'q':
+	direction = still;
+	break;
+    case 'e':
+	cameraMode = cameraMode === 1 ? 2 : 1;
+	if (cameraMode === 1) { // if we switched to third person, reset the angle
+	    console.log(playerRotation);
+	    let playerAngle = playerRotation % (2 * Math.PI);
+	    if (direction === still) {
+		// nothing happens, direction does not change
+	    } else if (playerAngle < 0.001) { // forward direction
+		direction = up;
+	    } else if (playerAngle - Math.PI / 2 < 0.001) { // left
+		direction = left;
+	    } else if (playerAngle - Math.PI < 0.001) { // down
+		direction = down;
+	    } else if (playerAngle - Math.PI * 3 / 2 < 0.001) { // right
+		direction = right;
+	    }
+	} else if (cameraMode === 2) { // if we switched to first person, set rotation angle
+	    if (direction === up) {
+		playerRotation = 0;
+	    } else if (direction === down) {
+		playerRotation = Math.PI;
+	    } else if (direction === left) {
+		playerRotation = Math.PI / 2;
+	    } else if (direction === right) {
+		playerRotation = Math.PI * 3 / 2;
+	    }
+	    if (direction != still) {
+		direction = up;
+	    }
+	}
+	break;
     }
+    playerRotation = (playerRotation) % (2 * Math.PI);
+    
 });
