@@ -80,6 +80,39 @@ const player = new THREE.Mesh(
 		    new THREE.SphereGeometry(l, 32, 32),
 		    new THREE.MeshPhongMaterial({color: 0xff0000})
 		);
+
+
+// Collision Dectection
+function checkCollisions() {
+    let pushBackDistance = 0.1; // fine tune it for bounce back affect
+    let collisionDetected = false;
+
+    for (const wallBB of wallBBes) {
+        if (player_BS.intersectsBox(wallBB)) {
+            collisionDetected = true;
+            break;
+        }
+    }
+    if (collisionDetected) {
+        // Apply a small push-back
+        if (direction === up) player.applyMatrix4(translationMatrix(0, 0, pushBackDistance));
+        else if (direction === down) player.applyMatrix4(translationMatrix(0, 0, -pushBackDistance));
+        else if (direction === left) player.applyMatrix4(translationMatrix(pushBackDistance, 0, 0));
+        else if (direction === right) player.applyMatrix4(translationMatrix(-pushBackDistance, 0, 0));
+
+        // Stop movement after collison
+        direction = still;
+    }
+}
+
+// Bounding Sphere for player
+let player_BS = new THREE.Sphere(player.position, 0.35); // using a smaller BS (0.35)
+
+// Bounding Boxes for wall
+const wallBBes = [];
+
+////////// END OF COLLISiON DETECTION //////////// 
+
 function createMaze(maze) {
     const wallGeometry = new THREE.BoxGeometry(mazeBoxSize, mazeHeight, mazeBoxSize);
     const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xf0f0f0 });
@@ -93,6 +126,11 @@ function createMaze(maze) {
                     i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
                 );
                 scene.add(wall);
+                 
+                // Collision detection: create bounding box for each wall and add it to the array
+                const wallBB = new THREE.Box3().setFromObject(wall);
+                wallBBes.push(wallBB);
+
             } else if (maze[i][j] == 2) {
 		player.matrix.copy(translationMatrix(
 		    j * mazeBoxSize - (maze[0].length * mazeBoxSize / 2), 
@@ -242,7 +280,8 @@ function animate() {
     delta_animation_time = clock.getDelta();
     animation_time += delta_animation_time;
     
-
+    // constantly check collisons
+    checkCollisions();
 }
 renderer.setAnimationLoop( animate );
 
