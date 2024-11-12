@@ -94,14 +94,38 @@ function checkCollisions() {
         }
     }
     if (collisionDetected) {
-        // Apply a small push-back
-        if (direction === up) player.applyMatrix4(translationMatrix(0, 0, pushBackDistance));
-        else if (direction === down) player.applyMatrix4(translationMatrix(0, 0, -pushBackDistance));
-        else if (direction === left) player.applyMatrix4(translationMatrix(pushBackDistance, 0, 0));
-        else if (direction === right) player.applyMatrix4(translationMatrix(-pushBackDistance, 0, 0));
+        if (cameraMode === 1) {
+            // Apply a small push-back (Third-person mode global direction) 
+            if (direction === up) player.applyMatrix4(translationMatrix(0, 0, pushBackDistance));
+            else if (direction === down) player.applyMatrix4(translationMatrix(0, 0, -pushBackDistance));
+            else if (direction === left) player.applyMatrix4(translationMatrix(pushBackDistance, 0, 0));
+            else if (direction === right) player.applyMatrix4(translationMatrix(-pushBackDistance, 0, 0));
+            direction = still;
+        }
+        else if (cameraMode === 2) {
+            // First-person mode push-back (based on player rotation)
+            pushBackDistance = 0.05;
+            let dx = 0;
+            let dz = 0;
+            if (direction === up) {
+                dx = Math.sin(playerRotation) * pushBackDistance;
+                dz = Math.cos(playerRotation) * pushBackDistance;
+            } else if (direction === down) {
+                dx = -Math.sin(playerRotation) * pushBackDistance;
+                dz = -Math.cos(playerRotation) * pushBackDistance;
+            } else if (direction === left) {
+                dx = Math.cos(playerRotation) * pushBackDistance;
+                dz = -Math.sin(playerRotation) * pushBackDistance;
+            } else if (direction === right) {
+                dx = -Math.cos(playerRotation) * pushBackDistance;
+                dz = Math.sin(playerRotation) * pushBackDistance;
+            }
+            // Apply the calculated push-back translation
+            player.applyMatrix4(translationMatrix(dx, 0, dz));
+        }
 
         // Stop movement after collison
-        direction = still;
+        // direction = still;   
     }
 }
 
