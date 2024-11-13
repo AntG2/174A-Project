@@ -64,8 +64,8 @@ scene.add(frontWall);
 const geometry = new THREE.PlaneGeometry(boxSize, boxSize);
 const groundMirror = new Reflector(geometry, {
     clipBias: 0.003,
-    textureWidth: 256,
-    textureHeight: 256
+    textureWidth: 512,
+    textureHeight: 512
     //color: 0x808080
 });
 groundMirror.position.set(0, -l + 0.01, 0);
@@ -179,15 +179,88 @@ const wallBBes = [];
 ////////// END OF COLLISiON DETECTION //////////// 
 
 let mirrors = [];
-//const frustum = new THREE.Frustum();
+let mirrorBBes = [];
+const frustum = new THREE.Frustum();
 //const projScreenMatrix = new THREE.Matrix4();
 function updateVisibleMirrors() {
+    frustum.setFromProjectionMatrix(
+        new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    );
+    const visibleMirrors = [];
+
+    for (let i = 0; i < mirrors.length; i++) {
+	const mirror = mirrors[i];
+        if (frustum.intersectsBox(mirrorBBes[i])) {
+            visibleMirrors.push(mirror);
+        } else {
+            mirror.visible = false;
+        }
+    }
+
+    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
+
+    for (const mirror of visibleMirrors) {
+        if (isBlocked(camera.position, mirror.position)) {
+            mirror.visible = false;
+        } else {
+            mirror.visible = true;
+        }
+	}
+	
+
+    /*
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
     mirrors.forEach(mirror => {
         const distance = playerPosition.distanceTo(mirror.position);
         mirror.visible = distance < mazeBoxSize * 6; // Adjust the distance as needed
-    });
+	});
+    */
+}
+
+
     
+function isBlocked(start, end) {
+    let count = 0;
+    
+    for (const mirrorBB of mirrorBBes) {
+        if (lineIntersectsBox(start, end, mirrorBB)) {
+            count++;
+        }
+    }
+    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
+    if (playerPosition.distanceTo(end) < 4 * mazeBoxSize) {
+	return count > 0; // close enough mirrors shouldn't have anything in its way to show
+    } else {
+	return count > 2; // account for mirrors partly behind corners
+    }
+}
+
+function lineIntersectsBox(start, end, box) {
+    // Create a line segment from start to end
+    const dir = new THREE.Vector3().subVectors(end, start).multiplyScalar(0.95);
+    
+    // Use the slab method to check for intersection with the box
+    let tmin = 0;
+    let tmax = 1;
+
+    for (let i = 0; i < 3; i++) {
+        const invDir = 1 / dir.getComponent(i);
+        let t0 = (box.min.getComponent(i) - start.getComponent(i)) * invDir;
+        let t1 = (box.max.getComponent(i) - start.getComponent(i)) * invDir;
+
+        if (invDir < 0) {
+            [t0, t1] = [t1, t0]; // Swap t0 and t1
+        }
+
+        tmin = Math.max(tmin, t0);
+        tmax = Math.min(tmax, t1);
+
+        if (tmax < tmin) {
+            return false; // No intersection
+        }
+    }
+
+    return true; // Intersection occurs
 }
 
 function countVisibleMirrors() {
@@ -212,6 +285,10 @@ function createMirror(width, height, position, rotationY) {
     scene.add(mirror);
     mirror.layers.set(1);
     mirrors.push(mirror);
+
+    // create bounding boxes for mirrors
+    const mirrorBB = new THREE.Box3().setFromObject(mirror);
+    mirrorBBes.push(mirrorBB);
 }
 
 
@@ -394,7 +471,7 @@ function animate() {
     moveMonster();
     
     updateCameraPosition();
-    //updateVisibleMirrors();
+    updateVisibleMirrors();
     // constantly check collisons
     checkCollisions();
     const time = performance.now() * 0.003;
@@ -512,9 +589,5 @@ function moveMonster() {
 
 }
 
-function asyncCalculation() {
-    result = Math.random() * 100;
-    console.log("new res: ", result);
-}
 
-const intervalId = setInterval(updateVisibleMirrors, interval);
+const intervalId = setInterval(countVisibleMirrors, interval);
