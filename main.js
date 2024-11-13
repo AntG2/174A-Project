@@ -274,6 +274,7 @@ function animate() {
     let matrix = new THREE.Matrix4();
     matrix.copy(player.matrix);
     movePlayer(direction);
+    moveMonster();
     
     updateCameraPosition();
     //clampCameraPosition();
@@ -386,3 +387,17 @@ document.addEventListener('keydown', (event) => {
     playerRotation = (playerRotation) % (2 * Math.PI);
     
 });
+
+let result;
+const interval = 5000;
+
+function moveMonster() {
+
+}
+
+function asyncCalculation() {
+    result = Math.random() * 100;
+    console.log("new res: ", result);
+}
+
+const intervalId = setInterval(asyncCalculation, interval);
