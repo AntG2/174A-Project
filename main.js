@@ -170,7 +170,6 @@ function checkCollisions() {
         direction = still;   
     }
 }
-
 // Bounding Sphere for player
 let player_BS = new THREE.Sphere(player.position, 0.15); // using a smaller BS (0.35)
 
@@ -178,6 +177,27 @@ let player_BS = new THREE.Sphere(player.position, 0.15); // using a smaller BS (
 const wallBBes = [];
 
 ////////// END OF COLLISiON DETECTION //////////// 
+
+let mirrors = [];
+//const frustum = new THREE.Frustum();
+//const projScreenMatrix = new THREE.Matrix4();
+function updateVisibleMirrors() {
+    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
+    mirrors.forEach(mirror => {
+        const distance = playerPosition.distanceTo(mirror.position);
+        mirror.visible = distance < mazeBoxSize * 6; // Adjust the distance as needed
+    });
+    
+}
+
+function countVisibleMirrors() {
+    console.log("begin counting");
+    mirrors.forEach(mirror => {
+	if (mirror.visible) {
+	    console.log("count");
+	}
+    });
+}
 
 function createMirror(width, height, position, rotationY) {
     const geometry = new THREE.PlaneGeometry(width, height);
@@ -191,6 +211,7 @@ function createMirror(width, height, position, rotationY) {
     mirror.rotation.y = rotationY;
     scene.add(mirror);
     mirror.layers.set(1);
+    mirrors.push(mirror);
 }
 
 
@@ -278,24 +299,7 @@ function translationMatrix(tx, ty, tz) {
 	0, 0, 0, 1
 	);
 }
-// TODO: Implement the other transformation functions.
-function rotationMatrixZ(theta) {
-    return new THREE.Matrix4().set(
-	Math.cos(theta), -Math.sin(theta), 0, 0,
-	Math.sin(theta), Math.cos(theta), 0, 0,
-	0, 0, 1, 0,
-	0, 0, 0, 1
-	);
-}
 
-function scalingMatrix(sx, sy, sz) {
-  return new THREE.Matrix4().set(
-      sx, 0, 0, 0,
-      0, sy, 0, 0,
-      0, 0, sz, 0,
-      0, 0, 0, 1
-  );
-}
 
 
 let animation_time = 0;
@@ -390,10 +394,7 @@ function animate() {
     moveMonster();
     
     updateCameraPosition();
-    //clampCameraPosition();
-    delta_animation_time = clock.getDelta();
-    animation_time += delta_animation_time;
-    
+    //updateVisibleMirrors();
     // constantly check collisons
     checkCollisions();
     const time = performance.now() * 0.003;
@@ -435,7 +436,6 @@ function movePlayer(direction) {
 }
 
 let playerRotation = 0;
-let lastD = still;
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
@@ -473,7 +473,6 @@ document.addEventListener('keydown', (event) => {
     case 'e':
 	cameraMode = cameraMode === 1 ? 2 : 1;
 	if (cameraMode === 1) { // if we switched to third person, reset the angle
-	    console.log(playerRotation);
 	    let playerAngle = playerRotation % (2 * Math.PI);
 	    if (direction === still) {
 		// nothing happens, direction does not change
@@ -507,7 +506,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 let result;
-const interval = 5000;
+const interval = 1000;
 
 function moveMonster() {
 
@@ -518,4 +517,4 @@ function asyncCalculation() {
     console.log("new res: ", result);
 }
 
-const intervalId = setInterval(asyncCalculation, interval);
+const intervalId = setInterval(updateVisibleMirrors, interval);
