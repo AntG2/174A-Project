@@ -78,7 +78,7 @@ camera.position.set(0, 10*l, 0);
 const maze_ex = [
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
     [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
@@ -219,7 +219,7 @@ function updateVisibleMirrors() {
         } else {
             mirror.visible = true;
         }
-	}
+    }
 	
 
     /*
@@ -623,4 +623,149 @@ function moveMonster() {
 }
 
 
-const intervalId = setInterval(countVisibleMirrors, interval);
+//const intervalId = setInterval(countVisibleMirrors, interval);
+
+// search algorithm
+
+// node class to do search tree
+class Node {
+    constructor(row, col) {
+        this.row = row;
+        this.col = col;
+        this.g = Infinity; // Cost from start to this node
+        this.h = Infinity; // Heuristic cost from this node to end
+        this.f = Infinity; // Total cost
+        this.parent = null; // To reconstruct the path
+    }
+}
+
+// a, b are Nodes
+// manhattan distance heuristic; admissible, finds optimal path
+function heuristic1(a, b) {
+    return Math.abs(b.row - a.row) + Math.abs(b.col - a.col);
+}
+
+function heuristic0(a, b) {
+    return 10;
+}
+
+
+// return the next possible states
+function getNeighbors(maze, node) {
+    const neighbors = []
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+
+    const mazeRows = maze.length;
+    // assuming maze is at least 1 by 1
+    const mazeCols = maze[0].length;
+    
+    // find next states
+    for (const dir of directions) {
+	const neighborRow = node.row + dir[0];
+	const neighborCol = node.col + dir[1];
+	// if neighboring location exists and is empty space
+	if (neighborRow >= 0 && neighborRow < mazeRows && neighborCol >= 0 && neighborCol < mazeCols && (maze[neighborRow][neighborCol] === 0 || maze[neighborRow][neighborCol] === 2 || maze[neighborRow][neighborCol] === 3)) {
+	    neighbors.push(new Node(neighborRow, neighborCol));
+	}
+    }
+
+    return neighbors;
+}
+
+// start and goal positions are coordinate pairs
+// maze is the 2D array abstraction
+function aStar(maze, startPos, goalPos, heuristic) {
+    const startNode = new Node(startPos[0], startPos[1]);
+    const goalNode = new Node(goalPos[0], goalPos[1]);
+
+    // initialize start node
+    startNode.g = 0;
+    startNode.h = heuristic(startNode, goalNode);
+    startNode.f = startNode.h + startNode.h;
+
+    // current search nodes
+    const openSet = [startNode];
+    // already searched nodes
+    const closedSet = [];
+
+    while (openSet.length > 0) {
+        // Find the node with the lowest f value
+        let currentNode = openSet[0];
+        for (let i = 1; i < openSet.length; i++) {
+            if (openSet[i].f < currentNode.f) {
+                currentNode = openSet[i];
+            }
+        }
+
+        // If we reached the goal
+        if (currentNode.row === goalNode.row && currentNode.col === goalNode.col) {
+            const path = [];
+            let temp = currentNode;
+	    // trace through parents back to root (goal to start)
+            while (temp) {
+                path.push([temp.row, temp.col]);
+                temp = temp.parent;
+            }
+	    // reverse the path to get the path from start to goal
+            return path.reverse();
+        }
+
+	// Move current node to searched set
+        openSet.splice(openSet.indexOf(currentNode), 1);
+        closedSet.push(currentNode);
+
+        // Push so-far unexplored, valid neighboring nodes
+        for (const neighbor of getNeighbors(maze, currentNode)) {
+            if (closedSet.some(node => node.row === neighbor.row && node.col === neighbor.col)) {
+                continue; // Ignore already evaluated nodes
+            }
+	    
+            const tentativeGScore = currentNode.g + 1; // Distance from start to neighbor
+
+            if (!openSet.some(node => node.row === neighbor.row && node.col === neighbor.col)) {
+                openSet.push(neighbor); // Discover a new node
+            } else if (tentativeGScore >= neighbor.g) {
+                continue; // Not a better path
+            }
+
+            // Record the best path so far
+            neighbor.parent = currentNode;
+            neighbor.g = tentativeGScore;
+            neighbor.h = heuristic(neighbor, goalNode);
+            neighbor.f = neighbor.g + neighbor.h;
+        }
+    }
+
+    return []; // No path found
+}
+
+function toGridPosition(x, z) {
+    const halfWidth = (maze_ex[0].length * mazeBoxSize) / 2;
+    const halfLength = (maze_ex.length * mazeBoxSize) / 2;
+    // derived from how the maze is initialized
+    let i = Math.round((z + halfLength) / mazeBoxSize);
+    let j = Math.round((x + halfWidth) / mazeBoxSize);
+    return [i, j]
+}
+
+let path = [];
+
+let difficulty = 1;
+
+function findMonsterPath() {
+    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
+    let heuristic;
+    switch (difficulty) {
+    case 1:
+	heuristic = heuristic1;
+	break;
+    default:
+	heuristic = heuristic0;
+    }
+    // test
+    path = aStar(maze_ex, [0, 1], toGridPosition(playerPosition.x, playerPosition.z), heuristic);
+    console.log(path)
+}
+// in milliseconds
+const interval2 = 2000;
+const intervalId2 = setInterval(findMonsterPath, interval2);
