@@ -78,7 +78,7 @@ camera.position.set(0, 10*l, 0);
 const maze_ex = [
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
     [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
@@ -103,7 +103,8 @@ const wispGeometry = new THREE.SphereGeometry(l, 32, 32);
 const wispMaterial = new THREE.MeshBasicMaterial({
     color: 0x7156B6, 
     transparent: true,
-    opacity: 0.5
+    opacity: 0.6,
+    //emissive: 0x7156B6
 });
 const wisp = new THREE.Mesh(wispGeometry, wispMaterial);
 const particleCount = 25;
@@ -164,10 +165,12 @@ function checkCollisions() {
             }
             // Apply the calculated push-back translation
             player.applyMatrix4(translationMatrix(dx, 0, dz));
+            direction = still;
         }
-
+        bumpSound.play();
+        moveSound.pause();
         // Stop movement after collison
-        direction = still;   
+        //direction = still;   
     }
 }
 // Bounding Sphere for player
@@ -317,7 +320,7 @@ function createMaze(maze) {
                 const wall = new THREE.Mesh(wallGeometry, wallMaterial);
                 wall.position.set(
                     j * mazeBoxSize - (maze[0].length * mazeBoxSize / 2), 
-                    mazeHeight/2, 
+                    mazeHeight/2 - l, 
                     i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
                 );
                 scene.add(wall);
@@ -339,7 +342,7 @@ function createMaze(maze) {
                         -Math.PI / 2);
                 }
     
-                if (j < maze[i].length - 1 && (maze[i][j + 1] === 0 || maze[i][j + 1] === 2) && counter4 <= 50) {  
+                if (j < maze[i].length - 1 && (maze[i][j + 1] === 0 || maze[i][j + 1] === 2) && counter4 <= 51) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x + mazeBoxSize / 2 + offset, wall.position.y, wall.position.z),
                         Math.PI / 2);
@@ -370,13 +373,15 @@ createMaze(maze_ex);
 // Setting up the lights
 const pointLight = new THREE.PointLight(0xffffff, 100, 100); 
 pointLight.position.set(0, mazeHeight * 1.5, 0);
+pointLight.castShadow = true;
 scene.add(pointLight);
 
-const ambientLight = new THREE.AmbientLight(0x606060, 0.8); 
+const ambientLight = new THREE.AmbientLight(0x606060, 0.6); 
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7); 
-directionalLight.position.set(0, mazeHeight * 2, 0);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); 
+directionalLight.position.set(10, mazeHeight * 2, 10);
+directionalLight.castShadow = true;
 scene.add(directionalLight);
 
 function translationMatrix(tx, ty, tz) {
@@ -476,6 +481,9 @@ const moveDistance = 0.03;
 
 function animate() {
     renderer.render( scene, camera );
+    renderer.shadowMap.enabled = true;
+    wisp.castShadow = true;
+    wisp.receiveShadow = true;
     let matrix = new THREE.Matrix4();
     matrix.copy(player.matrix);
     movePlayer(direction);
@@ -486,7 +494,7 @@ function animate() {
     // constantly check collisons
     checkCollisions();
     const time = performance.now() * 0.003;
-    wispMaterial.opacity = 0.5 + 0.2 * Math.sin(time);
+    wispMaterial.opacity = 0.6 + 0.3 * Math.sin(time);
     particles.rotation.y += 0.01;
 }
 renderer.setAnimationLoop( animate );
@@ -590,8 +598,22 @@ document.addEventListener('keydown', (event) => {
 	break;
     }
     playerRotation = (playerRotation) % (2 * Math.PI);
-    
-});
+    if (direction != still) moveSound.play()
+    if (direction == still) moveSound.pause()}
+);
+
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
+const bgm = new THREE.Audio(listener);
+const moveSound = new THREE.Audio(listener);
+const bumpSound = new THREE.Audio(listener);
+const audioLoader = new THREE.AudioLoader();
+bgm.autoplay = true;
+audioLoader.load('audio/bgm.mp3', buffer => { bgm.setBuffer(buffer); bgm.setLoop(true); bgm.play(); });
+audioLoader.load('audio/move.mp3', buffer => { moveSound.setBuffer(buffer); moveSound.setLoop(true);});
+audioLoader.load('audio/bump.mp3', buffer => {bumpSound.setBuffer(buffer); });
+
 
 let result;
 const interval = 1000;
