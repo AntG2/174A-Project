@@ -81,7 +81,7 @@ const maze_ex = [
     [1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
     [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
@@ -89,7 +89,7 @@ const maze_ex = [
     [1, 0, 1, 0, 1, 0, 1, 2, 1, 0, 1, 1, 1, 1, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1], 
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 /*
@@ -654,7 +654,11 @@ function moveMonster() {
 	
 	monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
 	
-	
+    // close to player and is at end of algorithm provided path
+    } else if (pathIndex >= pathLen) {
+	const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
+	let diff = new THREE.Vector3().subVectors(playerPosition, monsterPosition).normalize().multiplyScalar(moveDistance);
+	monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
     }
 }
 
@@ -700,7 +704,7 @@ function getNeighbors(maze, node) {
 	const neighborRow = node.row + dir[0];
 	const neighborCol = node.col + dir[1];
 	// if neighboring location exists and is empty space
-	if (neighborRow >= 0 && neighborRow < mazeRows && neighborCol >= 0 && neighborCol < mazeCols && (maze[neighborRow][neighborCol] === 0 || maze[neighborRow][neighborCol] === 2 || maze[neighborRow][neighborCol] === 3)) {
+	if (neighborRow >= 0 && neighborRow < mazeRows && neighborCol >= 0 && neighborCol < mazeCols && isFacingEmpty(maze, neighborRow, neighborCol)) {
 	    neighbors.push(new Node(neighborRow, neighborCol));
 	}
     }
