@@ -178,11 +178,22 @@ const wallBBes = [];
 
 ////////// END OF COLLISiON DETECTION //////////// 
 
+//////// mirror visibility update interval ////////
+let lastVisibilityUpdate = 0;
+const VISIBILITY_UPDATE_INTERVAL = 50; // 50ms between updates, adjust it
+
 let mirrors = [];
 let mirrorBBes = [];
 const frustum = new THREE.Frustum();
 //const projScreenMatrix = new THREE.Matrix4();
 function updateVisibleMirrors() {
+    const currentTime = performance.now();
+    if (currentTime - lastVisibilityUpdate < VISIBILITY_UPDATE_INTERVAL) {
+        return; // Skip update if too soon
+    }
+    lastVisibilityUpdate = currentTime;
+    ///// end of visibility update interval check//////
+
     frustum.setFromProjectionMatrix(
         new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
     );
