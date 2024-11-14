@@ -598,7 +598,7 @@ document.addEventListener('keydown', (event) => {
 	break;
     }
     playerRotation = (playerRotation) % (2 * Math.PI);
-    if (direction != still) moveSound.play()
+    if (direction != still && !moveSound.isPlaying) moveSound.play()
     if (direction == still) moveSound.pause()}
 );
 
