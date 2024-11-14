@@ -81,7 +81,7 @@ const maze_ex = [
     [1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
     [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
@@ -125,7 +125,10 @@ const particles = new THREE.Points(particleGeometry, particleMaterial);
 scene.add(wisp); 
 wisp.add(particles); 
 const player = wisp;
-
+const monster = new THREE.Mesh(
+		    new THREE.SphereGeometry(l, 32, 32),
+		    new THREE.MeshPhongMaterial({color: 0xff0000})
+		);
 // Collision Dectection
 function checkCollisions() {
     let pushBackDistance = 0.1; // fine tune it for bounce back affect
@@ -220,15 +223,6 @@ function updateVisibleMirrors() {
             mirror.visible = true;
         }
     }
-	
-
-    /*
-    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
-    mirrors.forEach(mirror => {
-        const distance = playerPosition.distanceTo(mirror.position);
-        mirror.visible = distance < mazeBoxSize * 6; // Adjust the distance as needed
-	});
-    */
 }
 
 
@@ -305,6 +299,9 @@ function createMirror(width, height, position, rotationY) {
     mirrorBBes.push(mirrorBB);
 }
 
+function isFacingEmpty(maze, i, j) {
+    return maze[i][j] === 0 || maze[i][j] === 2 || maze[i][j] === 3;
+}
 
 function createMaze(maze) {
     const wallGeometry = new THREE.BoxGeometry(mazeBoxSize, mazeHeight, mazeBoxSize);
@@ -325,24 +322,24 @@ function createMaze(maze) {
                 );
                 scene.add(wall);
        
-                if (i > 0 && maze[i - 1][j] === 0 && counter1 <= 50) {  
+                if (i > 0 && isFacingEmpty(maze, i - 1, j)  && counter1 <= 50) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z - mazeBoxSize / 2 - offset),
                         Math.PI);
                     counter1+=1;
                 }
-                if (i < maze.length - 1 && maze[i + 1][j] === 0 && counter2 <= 50) {  
+                if (i < maze.length - 1 && isFacingEmpty(maze, i + 1, j) && counter2 <= 50) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z + mazeBoxSize / 2 + offset),
                         0);
                 }
-                if (j > 0 && (maze[i][j - 1] === 0 || maze[i][j - 1] === 2) && counter3 <= 50) {  
+                if (j > 0 && isFacingEmpty(maze, i, j - 1) && counter3 <= 50) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x - mazeBoxSize / 2 - offset, wall.position.y, wall.position.z),
                         -Math.PI / 2);
                 }
     
-                if (j < maze[i].length - 1 && (maze[i][j + 1] === 0 || maze[i][j + 1] === 2) && counter4 <= 51) {  
+                if (j < maze[i].length - 1 && isFacingEmpty(maze, i, j + 1)  && counter4 <= 51) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x + mazeBoxSize / 2 + offset, wall.position.y, wall.position.z),
                         Math.PI / 2);
@@ -361,6 +358,15 @@ function createMaze(maze) {
 		scene.add(player);
 
 		player.matrixAutoUpdate = false;
+	    } else if (maze[i][j] == 3) {
+		monster.matrix.copy(translationMatrix(
+		    j * mazeBoxSize - (maze[0].length * mazeBoxSize / 2), 
+                    0, 
+                    i * mazeBoxSize - (maze.length * mazeBoxSize / 2)
+                ));
+		scene.add(monster);
+
+		monster.matrixAutoUpdate = false;
 	    }
 		
         }
@@ -618,8 +624,38 @@ audioLoader.load('audio/bump.mp3', buffer => {bumpSound.setBuffer(buffer); });
 let result;
 const interval = 1000;
 
-function moveMonster() {
+let path = [];
+let pathIndex = 0;
 
+function moveMonster() {
+    const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
+    const pathLen = path.length;
+    if (pathLen > 0 && pathIndex < pathLen) {
+	let pathTarget = path[pathIndex];
+	let targetPosition = new THREE.Vector3(
+	    pathTarget[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+	    0,
+	    pathTarget[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+	);
+	
+	if (monsterPosition.distanceTo(targetPosition) < 0.1) {
+	    pathIndex++;
+	    if (pathIndex >= pathLen) {
+		
+		return;
+	    }
+	    pathTarget = path[pathIndex];
+	    targetPosition.x = pathTarget[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2);
+	    targetPosition.z = pathTarget[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2);
+	}
+	let diff = new THREE.Vector3().subVectors(targetPosition, monsterPosition).normalize().multiplyScalar(moveDistance);
+	
+
+	
+	monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
+	
+	
+    }
 }
 
 
@@ -748,12 +784,13 @@ function toGridPosition(x, z) {
     return [i, j]
 }
 
-let path = [];
+
 
 let difficulty = 1;
 
 function findMonsterPath() {
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
+    const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix)
     let heuristic;
     switch (difficulty) {
     case 1:
@@ -763,9 +800,10 @@ function findMonsterPath() {
 	heuristic = heuristic0;
     }
     // test
-    path = aStar(maze_ex, [0, 1], toGridPosition(playerPosition.x, playerPosition.z), heuristic);
-    console.log(path)
+    path = aStar(maze_ex, toGridPosition(monsterPosition.x, monsterPosition.z), toGridPosition(playerPosition.x, playerPosition.z), heuristic);
+    console.log(path);
+    pathIndex = 0;
 }
 // in milliseconds
-const interval2 = 2000;
+const interval2 = 1500;
 const intervalId2 = setInterval(findMonsterPath, interval2);
