@@ -132,31 +132,31 @@ monster.castShadow = true;
 monster.receiveShadow = true;
 scene.add(monster);
 
-const spikeGeometry = new THREE.TetrahedronGeometry(0.1);
-const spikeMaterial = new THREE.MeshStandardMaterial({
+const shardGeometry = new THREE.TetrahedronGeometry(0.1);
+const shardMaterial = new THREE.MeshStandardMaterial({
     color: 0x252424, 
     emissive: 0xDDD8D8, 
     emissiveIntensity: 0.3,
 });
 
 for (let i = 0; i < 8; i++) {
-    const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
-    spike.position.set(
+    const shard = new THREE.Mesh(shardGeometry, shardMaterial);
+    shard.position.set(
         (Math.random() - 0.5) * 0.3 * 1.5,
         (Math.random() - 0.5) * 0.3 * 1.5,
         (Math.random() - 0.5) * 0.3 * 1.5
     );
-    spike.castShadow = true;
-    spike.receiveShadow = true;
-    monster.add(spike);
+    shard.castShadow = true;
+    shard.receiveShadow = true;
+    monster.add(shard);
 }
 
 function animateMonster() {
     monster.rotation.x += 0.01;
     monster.rotation.y += 0.01;
-    monster.children.forEach((spike, index) => {
-        spike.position.x += Math.sin(performance.now() * 0.001 + index) * 0.005;
-        spike.position.y += Math.cos(performance.now() * 0.001 + index) * 0.005;
+    monster.children.forEach((shard, index) => {
+        shard.position.x += Math.sin(performance.now() * 0.001 + index) * 0.005;
+        shard.position.y += Math.cos(performance.now() * 0.001 + index) * 0.005;
     });
     requestAnimationFrame(animateMonster);
 }
