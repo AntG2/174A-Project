@@ -92,12 +92,6 @@ const maze_ex = [
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1], 
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
-/*
-const player = new THREE.Mesh(
-		    new THREE.SphereGeometry(l, 32, 32),
-		    new THREE.MeshPhongMaterial({color: 0xff0000})
-		);
-        */
 
 const wispGeometry = new THREE.SphereGeometry(l, 32, 32);
 const wispMaterial = new THREE.MeshBasicMaterial({
@@ -125,10 +119,50 @@ const particles = new THREE.Points(particleGeometry, particleMaterial);
 scene.add(wisp); 
 wisp.add(particles); 
 const player = wisp;
-const monster = new THREE.Mesh(
-		    new THREE.SphereGeometry(l, 32, 32),
-		    new THREE.MeshPhongMaterial({color: 0xff0000})
-		);
+
+const monsterGeometry = new THREE.DodecahedronGeometry(0.3);
+const monsterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x252424, 
+    flatShading: true,
+    emissive: 0xDDD8D8, 
+    emissiveIntensity: 0.2,
+});
+const monster = new THREE.Mesh(monsterGeometry, monsterMaterial);
+monster.castShadow = true;
+monster.receiveShadow = true;
+scene.add(monster);
+
+const spikeGeometry = new THREE.TetrahedronGeometry(0.1);
+const spikeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x252424, 
+    emissive: 0xDDD8D8, 
+    emissiveIntensity: 0.3,
+});
+
+for (let i = 0; i < 8; i++) {
+    const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+    spike.position.set(
+        (Math.random() - 0.5) * 0.3 * 1.5,
+        (Math.random() - 0.5) * 0.3 * 1.5,
+        (Math.random() - 0.5) * 0.3 * 1.5
+    );
+    spike.castShadow = true;
+    spike.receiveShadow = true;
+    monster.add(spike);
+}
+
+function animateMonster() {
+    monster.rotation.x += 0.01;
+    monster.rotation.y += 0.01;
+    monster.children.forEach((spike, index) => {
+        spike.position.x += Math.sin(performance.now() * 0.001 + index) * 0.005;
+        spike.position.y += Math.cos(performance.now() * 0.001 + index) * 0.005;
+    });
+    requestAnimationFrame(animateMonster);
+}
+
+animateMonster();
+
 // Collision Dectection
 function checkCollisions() {
     let pushBackDistance = 0.1; // fine tune it for bounce back affect
@@ -490,6 +524,7 @@ function animate() {
     renderer.shadowMap.enabled = true;
     wisp.castShadow = true;
     wisp.receiveShadow = true;
+    groundMirror.receiveShadow = true;
     let matrix = new THREE.Matrix4();
     matrix.copy(player.matrix);
     movePlayer(direction);
