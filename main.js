@@ -483,7 +483,7 @@ function updateCameraPosition() {
     }
 }
 
-const moveDistance = 0.03;
+const moveDistance = 0.05;
 
 function animate() {
     renderer.render( scene, camera );
@@ -630,38 +630,62 @@ let pathIndex = 0;
 function moveMonster() {
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
     const pathLen = path.length;
-    if (pathLen > 0 && pathIndex < pathLen) {
-	let pathTarget = path[pathIndex];
-	let targetPosition = new THREE.Vector3(
-	    pathTarget[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
-	    0,
-	    pathTarget[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
-	);
+    if (pathLen > 0 && pathIndex < pathLen - 1) {
+	let targetPosition = getTargetPosition();
 	
 	if (monsterPosition.distanceTo(targetPosition) < 0.1) {
 	    pathIndex++;
 	    if (pathIndex >= pathLen) {
-		
 		return;
 	    }
-	    pathTarget = path[pathIndex];
-	    targetPosition.x = pathTarget[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2);
-	    targetPosition.z = pathTarget[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2);
+	    targetPosition = getTargetPosition();
 	}
-	let diff = new THREE.Vector3().subVectors(targetPosition, monsterPosition).normalize().multiplyScalar(moveDistance);
+	let diff = new THREE.Vector3().subVectors(targetPosition, monsterPosition).normalize().multiplyScalar(moveDistance * 6 / 7);
 	
 
 	
 	monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
 	
     // close to player and is at end of algorithm provided path
-    } else if (pathIndex >= pathLen) {
+    } else {
 	const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
-	let diff = new THREE.Vector3().subVectors(playerPosition, monsterPosition).normalize().multiplyScalar(moveDistance);
-	monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
+	if (playerPosition.distanceTo(monsterPosition) < 2*l) {
+	    let diff = new THREE.Vector3().subVectors(playerPosition, monsterPosition).normalize().multiplyScalar(moveDistance * 6 / 7);
+	    monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
+	}
     }
 }
 
+
+function getTargetPosition() {
+    let lookAheadIndex = pathIndex;
+    let targetPosition = new THREE.Vector3();
+    let distanceSum = 0;
+    let lookAheadDistance = moveDistance;
+
+    while (lookAheadIndex < path.length - 1 && distanceSum < lookAheadDistance) {
+        let currentPoint = path[lookAheadIndex];
+        let nextPoint = path[lookAheadIndex + 1];
+        
+        let currentPos = new THREE.Vector3(
+            currentPoint[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+            0,
+            currentPoint[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+        );
+        
+        let nextPos = new THREE.Vector3(
+            nextPoint[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+            0,
+            nextPoint[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+        );
+
+        distanceSum += currentPos.distanceTo(nextPos);
+        targetPosition.copy(nextPos);
+        lookAheadIndex++;
+    }
+
+    return targetPosition;
+}
 
 //const intervalId = setInterval(countVisibleMirrors, interval);
 
@@ -809,5 +833,5 @@ function findMonsterPath() {
     pathIndex = 0;
 }
 // in milliseconds
-const interval2 = 1500;
+const interval2 = 500;
 const intervalId2 = setInterval(findMonsterPath, interval2);
