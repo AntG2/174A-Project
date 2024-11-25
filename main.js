@@ -129,6 +129,67 @@ const monster = new THREE.Mesh(
 		    new THREE.SphereGeometry(l, 32, 32),
 		    new THREE.MeshPhongMaterial({color: 0xff0000})
 		);
+
+//////// Teleporation Implementation /////////
+// Create the ring geometry
+const ringGeometry = new THREE.RingGeometry(0.1, 0.2, 32); // Inner radius 0.5, outer radius 1
+
+// Material for the glowing ring
+const ringMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00bfff,      // Bluish glow
+    side: THREE.DoubleSide, // Visible from both sides
+    transparent: true,    // Enable transparency
+    opacity: 0.6          // Slight transparency
+});
+
+
+// player inital position (-0.5, 0, 2.5)
+const teleportPairs =[
+    { from: new THREE.Vector3(-0.23, 0, 3), to: new THREE.Vector3(-0.5, 0, -0.5)},
+    { from: new THREE.Vector3(-0.31, 0, -0.75), to: new THREE.Vector3(-0.5, 0, 3.5) }
+];
+
+// const teleporterMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00});
+// const teleporterGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+
+teleportPairs.forEach(pair => {  
+    // const teleporter = new THREE.Mesh(teleporterGeometry, teleporterMaterial);
+    const teleporterRing = new THREE.Mesh(ringGeometry, ringMaterial);
+    teleporterRing.rotation.x = -Math.PI / 2; // Flat on the ground
+    teleporterRing.position.copy(pair.from);
+    // teleporter.position.copy(pair.from);
+    // scene.add(teleporter);
+    scene.add(teleporterRing);
+
+    
+    const teleporterBB = new THREE.Box3().setFromObject(teleporterRing);
+    pair.fromBB = teleporterBB;
+
+    // we can use following to visualize bounding box to make sure it is properly set
+    const helper = new THREE.Box3Helper(teleporterBB, 0xff0000); // Red bounding box for visualization
+    scene.add(helper);
+});
+
+// function animateRing(ring) {
+//     const scale = 1 + 0.1 * Math.sin(performance.now() * 0.005);
+//     ring.scale.set(scale, scale, 1);
+// }
+
+
+function checkTeleportation() {
+    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
+    teleportPairs.forEach(pair => {
+        if (pair.fromBB.containsPoint(playerPosition)) {
+            // Teleport the player to the linked teleporter position
+            player.matrix.copy(translationMatrix(pair.to.x, pair.to.y, pair.to.z));
+            
+            direction = still; 
+        }
+    });
+}
+
+//////// End of Teleporation Implementation /////////
+
 // Collision Dectection
 function checkCollisions() {
     let pushBackDistance = 0.1; // fine tune it for bounce back affect
@@ -215,7 +276,7 @@ function updateVisibleMirrors() {
     }
 
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
-
+    console.log("player's current location is: ", playerPosition); 
     for (const mirror of visibleMirrors) {
         if (isBlocked(camera.position, mirror.position)) {
             mirror.visible = false;
@@ -495,6 +556,8 @@ function animate() {
     movePlayer(direction);
     moveMonster();
     
+    checkTeleportation();  // Add teleportation logic
+
     updateCameraPosition();
     updateVisibleMirrors();
     // constantly check collisons
@@ -538,6 +601,9 @@ function movePlayer(direction) {
 }
 
 let playerRotation = 0;
+
+// Overall view
+// let previousCameraModel = 1;
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
@@ -601,6 +667,18 @@ document.addEventListener('keydown', (event) => {
 		direction = up;
 	    }
 	}
+    // overall view
+    // case 'v':
+    //     if (cameraMode != 3) {
+    //         previousCameraModel = cameraMode;
+    //         cameraMode = 3;
+    //         direction = still;
+    //         camera.position.set(0, boxSize/2, 0);
+    //         currentLookAt(0, 0, 0);
+    //     }
+    //     else {
+    //         cameraMode = previousCameraModel;
+    //     }
 	break;
     }
     playerRotation = (playerRotation) % (2 * Math.PI);
