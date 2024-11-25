@@ -80,7 +80,7 @@ const maze_ex = [
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
     [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
+    [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 3, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
@@ -89,7 +89,7 @@ const maze_ex = [
     [1, 0, 1, 0, 1, 0, 1, 2, 1, 0, 1, 1, 1, 1, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1], 
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
@@ -190,8 +190,16 @@ function teleportPlayer(excludeX, excludeZ) {
 // end of teleportation logic
 
 // Collision Dectection
+let ongoingPushback = false;
+let pushbackStart = new THREE.Vector3();
+let pushbackEnd = new THREE.Vector3();
+const pushbackDuration = 1;
+const pushbackDistance = mazeBoxSize / 2 - l; // fine tune it for bounce back affect
+let pushbackTimeStart = 0;
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
 function checkCollisions() {
-    let pushBackDistance = 0.1; // fine tune it for bounce back affect
+    
     let collisionDetected = false;
 
     for (const wallBB of wallBBes) {
@@ -200,40 +208,45 @@ function checkCollisions() {
             break;
         }
     }
-    if (collisionDetected) {
+    if (collisionDetected && !ongoingPushback) {
+	ongoingPushback = true;
+	pushbackTimeStart = clock.getElapsedTime();
+	pushbackStart.copy(player.position);
+	let dx = 0, dz = 0;
         if (cameraMode === 1) {
             // Apply a small push-back (Third-person mode global direction) 
-            if (direction === up) player.applyMatrix4(translationMatrix(0, 0, pushBackDistance));
-            else if (direction === down) player.applyMatrix4(translationMatrix(0, 0, -pushBackDistance));
-            else if (direction === left) player.applyMatrix4(translationMatrix(pushBackDistance, 0, 0));
-            else if (direction === right) player.applyMatrix4(translationMatrix(-pushBackDistance, 0, 0));
-            direction = still;
+            if (direction === up)
+		dz = pushbackDistance;
+            else if (direction === down)
+		dz = -pushbackDistance;
+            else if (direction === left)
+		dx = pushbackDistance;
+            else if (direction === right)
+		dx = -pushbackDistance;
         }
         else if (cameraMode === 2) {
             // First-person mode push-back (based on player rotation)
-            let dx = 0;
-            let dz = 0;
             if (direction === up) {
-                dx = Math.sin(playerRotation) * pushBackDistance;
-                dz = Math.cos(playerRotation) * pushBackDistance;
+                dx = Math.sin(playerRotation) * pushbackDistance;
+                dz = Math.cos(playerRotation) * pushbackDistance;
             } else if (direction === down) {
-                dx = -Math.sin(playerRotation) * pushBackDistance;
-                dz = -Math.cos(playerRotation) * pushBackDistance;
+                dx = -Math.sin(playerRotation) * pushbackDistance;
+                dz = -Math.cos(playerRotation) * pushbackDistance;
             } else if (direction === left) {
-                dx = Math.cos(playerRotation) * pushBackDistance;
-                dz = -Math.sin(playerRotation) * pushBackDistance;
+                dx = Math.cos(playerRotation) * pushbackDistance;
+                dz = -Math.sin(playerRotation) * pushbackDistance;
             } else if (direction === right) {
-                dx = -Math.cos(playerRotation) * pushBackDistance;
-                dz = Math.sin(playerRotation) * pushBackDistance;
+                dx = -Math.cos(playerRotation) * pushbackDistance;
+                dz = Math.sin(playerRotation) * pushbackDistance;
             }
-            // Apply the calculated push-back translation
-            player.applyMatrix4(translationMatrix(dx, 0, dz));
-            direction = still;
+           
         }
+	pushbackEnd.copy(pushbackStart).add(new THREE.Vector3(dx, 0, dz));
+	
         bumpSound.play();
         moveSound.pause();
         // Stop movement after collison
-        //direction = still;   
+        direction = still;   
     }
 }
 // Bounding Sphere for player
@@ -242,7 +255,60 @@ let player_BS = new THREE.Sphere(player.position, 0.15); // using a smaller BS (
 // Bounding Boxes for wall
 const wallBBes = [];
 
-////////// END OF COLLISiON DETECTION //////////// 
+////////// END OF COLLISiON DETECTION ////////////
+
+// Variables for the wobbly circle to show a "stunned" status
+let wobblyCircle;
+const circleRadius = 4 / 3* l; // Adjust as needed
+const segments = 32; // Number of segments for the circle
+const wobbleAmplitude = l / 2; // Amplitude of the wobble effect
+const wobbleSpeed = 3; // Speed of the wobble effect
+
+function createWobblyCircle() {
+    const geometry = new THREE.RingGeometry(circleRadius, circleRadius + 0.01,  segments);
+    const material = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+    wobblyCircle = new THREE.Mesh(geometry, material);
+    wobblyCircle.rotation.x = Math.PI / 2; // Rotate to face upwards
+    scene.add(wobblyCircle);
+}
+let initialRotation = new THREE.Euler();
+const maxTiltAngle = Math.PI / 3; // Maximum tilt angle (30 degrees)
+
+function updateWobblyCircle(pushbackProgress) {
+    if (wobblyCircle) {
+        // Wobble effect using sine function
+	const time = pushbackProgress - pushbackTimeStart;
+        // More complex wobble effect using multiple sine waves
+        const scale = 1 + (
+            Math.sin(time * wobbleSpeed) +
+            Math.sin(time * wobbleSpeed * 1.3 + Math.PI / 4) +
+            Math.sin(time * wobbleSpeed * 0.7 + Math.PI / 2)
+        ) * wobbleAmplitude / 3;
+        wobblyCircle.scale.set(scale, scale, scale);
+
+        // More random rotation using multiple sine waves
+        const tiltY = (
+            Math.sin(time * 2.5) +
+            Math.sin(time * 3.1 + Math.PI / 3)
+        ) * maxTiltAngle * (1 - pushbackProgress) / 2;
+
+        const tiltZ = (
+            Math.sin(time * 3.7) +
+            Math.sin(time * 2.9 + Math.PI / 6)
+        ) * maxTiltAngle * (1 - pushbackProgress) / 2;
+        
+        wobblyCircle.rotation.y = initialRotation.y + tiltY;
+        wobblyCircle.rotation.z = initialRotation.z + tiltZ;
+        
+        wobblyCircle.position.copy(player.position);
+    }
+}
+
+
+
+// Call this function once when initializing your scene
+createWobblyCircle();
+
 
 //////// mirror visibility update interval ////////
 let lastVisibilityUpdate = 0;
@@ -297,7 +363,7 @@ function isBlocked(start, end) {
     }
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
     if (playerPosition.distanceTo(end) < 4 * mazeBoxSize) {
-	return count > 0; // close enough mirrors shouldn't have anything in its way to show
+	return count > 0; // close enough mirrors shouldn't have anything in its way to be visible
     } else {
 	return count > 2; // account for mirrors partly behind corners
     }
@@ -543,7 +609,7 @@ function updateCameraPosition() {
     }
 }
 
-const moveDistance = 0.05;
+const moveDistance = 0.015;
 
 function animate() {
     renderer.render( scene, camera );
@@ -560,6 +626,22 @@ function animate() {
     updateVisibleMirrors();
     // constantly check collisons
     checkCollisions();
+    if (ongoingPushback) {
+	const elapsedTime = clock.getElapsedTime() - pushbackTimeStart;
+	const pushbackProgress = Math.min(elapsedTime / pushbackDuration, 1);
+	const easedProgress = easeOutCubic(pushbackProgress);
+	updateWobblyCircle(pushbackProgress);
+	if (pushbackProgress >= 1) {
+	    console.log(pushbackProgress);
+	    ongoingPushback = false;
+	    player.matrix.setPosition(pushbackEnd);
+	} else {
+	    const interpolatedPosition = new THREE.Vector3().lerpVectors(pushbackStart, pushbackEnd, easedProgress);
+	    player.matrix.setPosition(interpolatedPosition);
+	}
+    }
+    wobblyCircle.position.copy(player.position);
+   // wobblyCircle.position.y -= l / 2;
     const time = performance.now() * 0.003;
     wispMaterial.opacity = 0.6 + 0.3 * Math.sin(time);
     particles.rotation.y += 0.01;
@@ -602,67 +684,69 @@ let playerRotation = 0;
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
-    switch (event.key) {
-    case 'w':
-        direction = up;
-        break;
-    case 's':
-	if (cameraMode === 1) {
-            direction = down;
-	} else if (cameraMode === 2) {
-	    playerRotation += Math.PI;
-	    direction = up;
-	}
-        break;
-    case 'a':
-	if (cameraMode === 1) {
-            direction = left;
-	} else if (cameraMode === 2) {
-	    playerRotation += Math.PI / 2;
-	    direction = up;
-	}
-        break;
-    case 'd':
-	if (cameraMode === 1) {
-	    direction = right;
-	} else if (cameraMode === 2) {
-	    playerRotation += 3 * Math.PI / 2;
-	    direction = up;
-	}
-        break;
-    case 'q':
-	direction = still;
-	break;
-    case 'e':
-	cameraMode = cameraMode === 1 ? 2 : 1;
-	if (cameraMode === 1) { // if we switched to third person, reset the angle
-	    let playerAngle = playerRotation % (2 * Math.PI);
-	    if (direction === still) {
-		// nothing happens, direction does not change
-	    } else if (playerAngle < 0.001) { // forward direction
-		direction = up;
-	    } else if (playerAngle - Math.PI / 2 < 0.001) { // left
-		direction = left;
-	    } else if (playerAngle - Math.PI < 0.001) { // down
+    if (!ongoingPushback) {
+	switch (event.key) {
+	case 'w':
+            direction = up;
+            break;
+	case 's':
+	    if (cameraMode === 1) {
 		direction = down;
-	    } else if (playerAngle - Math.PI * 3 / 2 < 0.001) { // right
-		direction = right;
-	    }
-	} else if (cameraMode === 2) { // if we switched to first person, set rotation angle
-	    if (direction === up) {
-		playerRotation = 0;
-	    } else if (direction === down) {
-		playerRotation = Math.PI;
-	    } else if (direction === left) {
-		playerRotation = Math.PI / 2;
-	    } else if (direction === right) {
-		playerRotation = Math.PI * 3 / 2;
-	    }
-	    if (direction != still) {
+	    } else if (cameraMode === 2) {
+		playerRotation += Math.PI;
 		direction = up;
 	    }
+            break;
+	case 'a':
+	    if (cameraMode === 1) {
+		direction = left;
+	    } else if (cameraMode === 2) {
+		playerRotation += Math.PI / 2;
+		direction = up;
+	    }
+            break;
+	case 'd':
+	    if (cameraMode === 1) {
+		direction = right;
+	    } else if (cameraMode === 2) {
+		playerRotation += 3 * Math.PI / 2;
+		direction = up;
+	    }
+            break;
+	case 'q':
+	    direction = still;
+	    break;
+	case 'e':
+	    cameraMode = cameraMode === 1 ? 2 : 1;
+	    if (cameraMode === 1) { // if we switched to third person, reset the angle
+		let playerAngle = playerRotation % (2 * Math.PI);
+		if (direction === still) {
+		    // nothing happens, direction does not change
+		} else if (playerAngle < 0.001) { // forward direction
+		    direction = up;
+		} else if (playerAngle - Math.PI / 2 < 0.001) { // left
+		    direction = left;
+		} else if (playerAngle - Math.PI < 0.001) { // down
+		    direction = down;
+		} else if (playerAngle - Math.PI * 3 / 2 < 0.001) { // right
+		    direction = right;
+		}
+	    } else if (cameraMode === 2) { // if we switched to first person, set rotation angle
+		if (direction === up) {
+		    playerRotation = 0;
+		} else if (direction === down) {
+		    playerRotation = Math.PI;
+		} else if (direction === left) {
+		    playerRotation = Math.PI / 2;
+		} else if (direction === right) {
+		    playerRotation = Math.PI * 3 / 2;
+		}
+		if (direction != still) {
+		    direction = up;
+		}
+	    }
+	    break;
 	}
-	break;
     }
     playerRotation = (playerRotation) % (2 * Math.PI);
     if (direction != still && !moveSound.isPlaying) moveSound.play()
@@ -687,6 +771,7 @@ const interval = 1000;
 
 let path = [];
 let pathIndex = 0;
+const monsterDistance = moveDistance * 6 / 7;
 
 function moveMonster() {
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
@@ -710,7 +795,7 @@ function moveMonster() {
 	    }
 	    targetPosition = getTargetPosition();
 	}
-	let diff = new THREE.Vector3().subVectors(targetPosition, monsterPosition).normalize().multiplyScalar(moveDistance * 6 / 7);
+	let diff = new THREE.Vector3().subVectors(targetPosition, monsterPosition).normalize().multiplyScalar(monsterDistance);
 	
 
 	
@@ -719,8 +804,8 @@ function moveMonster() {
     // close to player and is at end of algorithm provided path
     } else {
 	const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
-	if (playerPosition.distanceTo(monsterPosition) < 2*l) {
-	    let diff = new THREE.Vector3().subVectors(playerPosition, monsterPosition).normalize().multiplyScalar(moveDistance * 6 / 7);
+	if (playerPosition.distanceTo(monsterPosition) < mazeBoxSize) {
+	    let diff = new THREE.Vector3().subVectors(playerPosition, monsterPosition).normalize().multiplyScalar(monsterDistance);
 	    monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
 	}
     }
