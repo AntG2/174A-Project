@@ -162,6 +162,32 @@ function animateMonster() {
 }
 
 animateMonster();
+// Teleportation logic
+const validTeleportPositions = [];
+for (let i = 0; i < maze_ex.length; i++) {
+    for (let j = 0; j < maze_ex[i].length; j++) {
+        if (maze_ex[i][j] === 0) {
+            validTeleportPositions.push({
+                x: j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+                z: i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+            });
+        }
+    }
+}
+
+function teleportPlayer(excludeX, excludeZ) {
+    // Filter out the excluded position - where the player been caught
+    const availablePositions = validTeleportPositions.filter(pos => 
+        !(Math.abs(pos.x - excludeX) < 0.1 && Math.abs(pos.z - excludeZ) < 0.1)
+    );
+    
+    if (availablePositions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availablePositions.length);
+        const newPosition = availablePositions[randomIndex];
+        player.matrix.copy(translationMatrix(newPosition.x, 0, newPosition.z));
+    }
+}
+// end of teleportation logic
 
 // Collision Dectection
 let ongoingPushback = false;
@@ -761,6 +787,15 @@ const monsterDistance = moveDistance * 6 / 7;
 
 function moveMonster() {
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
+    // teleportation logic
+    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
+    // Check for intersection/catch
+    if (monsterPosition.distanceTo(playerPosition) < 0.2) { 
+        teleportPlayer(playerPosition.x, playerPosition.z);
+        return;  // Skip movement for this frame
+    }
+
+
     const pathLen = path.length;
     if (pathLen > 0 && pathIndex < pathLen - 1) {
 	let targetPosition = getTargetPosition();
