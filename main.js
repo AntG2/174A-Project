@@ -18,6 +18,7 @@ const phong_material = new THREE.MeshPhongMaterial({
     shininess: 100   // Shininess of the material
 });
 
+let win = false;
 
 function createPlane(width, height, color, rotationX, positionY) {
     const geometry = new THREE.PlaneGeometry(width, height);
@@ -92,6 +93,39 @@ const maze_ex = [
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
+
+const mapWidth = (maze_ex[0].length + 1) * mazeBoxSize + 2*l; // Width of the maze
+const mapHeight = (maze_ex.length + 1) * mazeBoxSize + 2*l;  // Height of the maze
+
+function checkWinningCondition(player) {
+    const playerPosition = new THREE.Vector3();
+    player.matrix.decompose(playerPosition, new THREE.Quaternion(), new THREE.Vector3());
+
+    // Check if player is outside the boundaries of the maze
+    if (!win &&
+        (playerPosition.x < -mapWidth / 2 || 
+         playerPosition.x > mapWidth / 2 - mazeBoxSize || 
+         playerPosition.z < -mapHeight / 2|| 
+         playerPosition.z > mapHeight / 2 - mazeBoxSize)
+       ) {
+	console.log("Hello")
+	win = true;
+	direction = still;
+        return true; // Player has exited the maze
+    }
+    return false; // Player is still within the maze
+}
+function showWinScreen() {
+    document.getElementById('winScreen').style.display = 'block';
+}
+function restartGame() {
+    // Reset player position, game state, etc.
+    document.getElementById('winScreen').style.display = 'none';
+    // Optionally reset maze or reload level
+    console.log("I am called")
+}
+// Make restartGame globally accessible
+window.restartGame = restartGame;
 
 const wispGeometry = new THREE.SphereGeometry(l, 32, 32);
 const wispMaterial = new THREE.MeshBasicMaterial({
@@ -654,7 +688,9 @@ function animate() {
 	particles.rotation.y += 0.01;
     }
     wobblyCircle.position.copy(player.position);
-   // wobblyCircle.position.y -= l / 2;
+    if (checkWinningCondition(player)) {
+        showWinScreen();
+    }
     
     
 }
