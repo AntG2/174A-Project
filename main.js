@@ -92,12 +92,6 @@ const maze_ex = [
     [1, 0, 0, 0, 1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1], 
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
-/*
-const player = new THREE.Mesh(
-		    new THREE.SphereGeometry(l, 32, 32),
-		    new THREE.MeshPhongMaterial({color: 0xff0000})
-		);
-        */
 
 const wispGeometry = new THREE.SphereGeometry(l, 32, 32);
 const wispMaterial = new THREE.MeshBasicMaterial({
@@ -125,70 +119,75 @@ const particles = new THREE.Points(particleGeometry, particleMaterial);
 scene.add(wisp); 
 wisp.add(particles); 
 const player = wisp;
-const monster = new THREE.Mesh(
-		    new THREE.SphereGeometry(l, 32, 32),
-		    new THREE.MeshPhongMaterial({color: 0xff0000})
-		);
 
-//////// Teleporation Implementation /////////
-// Create the ring geometry
-const ringGeometry = new THREE.RingGeometry(0.1, 0.2, 32); // Inner radius 0.5, outer radius 1
+const monsterGeometry = new THREE.DodecahedronGeometry(0.3);
+const monsterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x252424, 
+    flatShading: true,
+    emissive: 0xDDD8D8, 
+    emissiveIntensity: 0.2,
+});
+const monster = new THREE.Mesh(monsterGeometry, monsterMaterial);
+monster.castShadow = true;
+monster.receiveShadow = true;
+scene.add(monster);
 
-// Material for the glowing ring
-const ringMaterial = new THREE.MeshBasicMaterial({
-    color: 0x00bfff,      // Bluish glow
-    side: THREE.DoubleSide, // Visible from both sides
-    transparent: true,    // Enable transparency
-    opacity: 0.6          // Slight transparency
+const shardGeometry = new THREE.TetrahedronGeometry(0.1);
+const shardMaterial = new THREE.MeshStandardMaterial({
+    color: 0x252424, 
+    emissive: 0xDDD8D8, 
+    emissiveIntensity: 0.3,
 });
 
-
-// player inital position (-0.5, 0, 2.5)
-const teleportPairs =[
-    { from: new THREE.Vector3(-0.23, 0, 3), to: new THREE.Vector3(-0.5, 0, -0.5)},
-    { from: new THREE.Vector3(-0.31, 0, -0.75), to: new THREE.Vector3(-0.5, 0, 3.5) }
-];
-
-// const teleporterMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00});
-// const teleporterGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-
-teleportPairs.forEach(pair => {  
-    // const teleporter = new THREE.Mesh(teleporterGeometry, teleporterMaterial);
-    const teleporterRing = new THREE.Mesh(ringGeometry, ringMaterial);
-    teleporterRing.rotation.x = -Math.PI / 2; // Flat on the ground
-    teleporterRing.position.copy(pair.from);
-    // teleporter.position.copy(pair.from);
-    // scene.add(teleporter);
-    scene.add(teleporterRing);
-
-    
-    const teleporterBB = new THREE.Box3().setFromObject(teleporterRing);
-    pair.fromBB = teleporterBB;
-
-    // we can use following to visualize bounding box to make sure it is properly set
-    const helper = new THREE.Box3Helper(teleporterBB, 0xff0000); // Red bounding box for visualization
-    scene.add(helper);
-});
-
-// function animateRing(ring) {
-//     const scale = 1 + 0.1 * Math.sin(performance.now() * 0.005);
-//     ring.scale.set(scale, scale, 1);
-// }
-
-
-function checkTeleportation() {
-    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
-    teleportPairs.forEach(pair => {
-        if (pair.fromBB.containsPoint(playerPosition)) {
-            // Teleport the player to the linked teleporter position
-            player.matrix.copy(translationMatrix(pair.to.x, pair.to.y, pair.to.z));
-            
-            direction = still; 
-        }
-    });
+for (let i = 0; i < 8; i++) {
+    const shard = new THREE.Mesh(shardGeometry, shardMaterial);
+    shard.position.set(
+        (Math.random() - 0.5) * 0.3 * 1.5,
+        (Math.random() - 0.5) * 0.3 * 1.5,
+        (Math.random() - 0.5) * 0.3 * 1.5
+    );
+    shard.castShadow = true;
+    shard.receiveShadow = true;
+    monster.add(shard);
 }
 
-//////// End of Teleporation Implementation /////////
+function animateMonster() {
+    monster.rotation.x += 0.01;
+    monster.rotation.y += 0.01;
+    monster.children.forEach((shard, index) => {
+        shard.position.x += Math.sin(performance.now() * 0.001 + index) * 0.005;
+        shard.position.y += Math.cos(performance.now() * 0.001 + index) * 0.005;
+    });
+    requestAnimationFrame(animateMonster);
+}
+
+animateMonster();
+// Teleportation logic
+const validTeleportPositions = [];
+for (let i = 0; i < maze_ex.length; i++) {
+    for (let j = 0; j < maze_ex[i].length; j++) {
+        if (maze_ex[i][j] === 0) {
+            validTeleportPositions.push({
+                x: j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+                z: i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+            });
+        }
+    }
+}
+
+function teleportPlayer(excludeX, excludeZ) {
+    // Filter out the excluded position - where the player been caught
+    const availablePositions = validTeleportPositions.filter(pos => 
+        !(Math.abs(pos.x - excludeX) < 0.1 && Math.abs(pos.z - excludeZ) < 0.1)
+    );
+    
+    if (availablePositions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availablePositions.length);
+        const newPosition = availablePositions[randomIndex];
+        player.matrix.copy(translationMatrix(newPosition.x, 0, newPosition.z));
+    }
+}
+// end of teleportation logic
 
 // Collision Dectection
 function checkCollisions() {
@@ -276,7 +275,7 @@ function updateVisibleMirrors() {
     }
 
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
-    console.log("player's current location is: ", playerPosition); 
+
     for (const mirror of visibleMirrors) {
         if (isBlocked(camera.position, mirror.position)) {
             mirror.visible = false;
@@ -544,20 +543,19 @@ function updateCameraPosition() {
     }
 }
 
-const moveDistance = 0.03;
+const moveDistance = 0.05;
 
 function animate() {
     renderer.render( scene, camera );
     renderer.shadowMap.enabled = true;
     wisp.castShadow = true;
     wisp.receiveShadow = true;
+    groundMirror.receiveShadow = true;
     let matrix = new THREE.Matrix4();
     matrix.copy(player.matrix);
     movePlayer(direction);
     moveMonster();
     
-    checkTeleportation();  // Add teleportation logic
-
     updateCameraPosition();
     updateVisibleMirrors();
     // constantly check collisons
@@ -601,9 +599,6 @@ function movePlayer(direction) {
 }
 
 let playerRotation = 0;
-
-// Overall view
-// let previousCameraModel = 1;
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
@@ -667,18 +662,6 @@ document.addEventListener('keydown', (event) => {
 		direction = up;
 	    }
 	}
-    // overall view
-    // case 'v':
-    //     if (cameraMode != 3) {
-    //         previousCameraModel = cameraMode;
-    //         cameraMode = 3;
-    //         direction = still;
-    //         camera.position.set(0, boxSize/2, 0);
-    //         currentLookAt(0, 0, 0);
-    //     }
-    //     else {
-    //         cameraMode = previousCameraModel;
-    //     }
 	break;
     }
     playerRotation = (playerRotation) % (2 * Math.PI);
@@ -707,39 +690,72 @@ let pathIndex = 0;
 
 function moveMonster() {
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
+    // teleportation logic
+    const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
+    // Check for intersection/catch
+    if (monsterPosition.distanceTo(playerPosition) < 0.2) { 
+        teleportPlayer(playerPosition.x, playerPosition.z);
+        return;  // Skip movement for this frame
+    }
+
+
     const pathLen = path.length;
-    if (pathLen > 0 && pathIndex < pathLen) {
-	let pathTarget = path[pathIndex];
-	let targetPosition = new THREE.Vector3(
-	    pathTarget[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
-	    0,
-	    pathTarget[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
-	);
+    if (pathLen > 0 && pathIndex < pathLen - 1) {
+	let targetPosition = getTargetPosition();
 	
 	if (monsterPosition.distanceTo(targetPosition) < 0.1) {
 	    pathIndex++;
 	    if (pathIndex >= pathLen) {
-		
 		return;
 	    }
-	    pathTarget = path[pathIndex];
-	    targetPosition.x = pathTarget[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2);
-	    targetPosition.z = pathTarget[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2);
+	    targetPosition = getTargetPosition();
 	}
-	let diff = new THREE.Vector3().subVectors(targetPosition, monsterPosition).normalize().multiplyScalar(moveDistance);
+	let diff = new THREE.Vector3().subVectors(targetPosition, monsterPosition).normalize().multiplyScalar(moveDistance * 6 / 7);
 	
 
 	
 	monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
 	
     // close to player and is at end of algorithm provided path
-    } else if (pathIndex >= pathLen) {
+    } else {
 	const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
-	let diff = new THREE.Vector3().subVectors(playerPosition, monsterPosition).normalize().multiplyScalar(moveDistance);
-	monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
+	if (playerPosition.distanceTo(monsterPosition) < 2*l) {
+	    let diff = new THREE.Vector3().subVectors(playerPosition, monsterPosition).normalize().multiplyScalar(moveDistance * 6 / 7);
+	    monster.applyMatrix4(translationMatrix(diff.x, 0, diff.z));
+	}
     }
 }
 
+
+function getTargetPosition() {
+    let lookAheadIndex = pathIndex;
+    let targetPosition = new THREE.Vector3();
+    let distanceSum = 0;
+    let lookAheadDistance = moveDistance;
+
+    while (lookAheadIndex < path.length - 1 && distanceSum < lookAheadDistance) {
+        let currentPoint = path[lookAheadIndex];
+        let nextPoint = path[lookAheadIndex + 1];
+        
+        let currentPos = new THREE.Vector3(
+            currentPoint[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+            0,
+            currentPoint[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+        );
+        
+        let nextPos = new THREE.Vector3(
+            nextPoint[1] * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+            0,
+            nextPoint[0] * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+        );
+
+        distanceSum += currentPos.distanceTo(nextPos);
+        targetPosition.copy(nextPos);
+        lookAheadIndex++;
+    }
+
+    return targetPosition;
+}
 
 //const intervalId = setInterval(countVisibleMirrors, interval);
 
@@ -887,5 +903,5 @@ function findMonsterPath() {
     pathIndex = 0;
 }
 // in milliseconds
-const interval2 = 1500;
+const interval2 = 500;
 const intervalId2 = setInterval(findMonsterPath, interval2);
