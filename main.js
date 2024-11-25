@@ -162,6 +162,121 @@ function animateMonster() {
 }
 
 animateMonster();
+
+
+// Timer implemenation
+let timeRemaining = 120; // 2 minutes in seconds
+let timerInterval;
+let isGameOver = false;
+
+// Create UI elements
+const timerDisplay = document.createElement('div');
+timerDisplay.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-size: 24px;
+    font-family: Arial, sans-serif;
+    z-index: 1000;
+`;
+document.body.appendChild(timerDisplay);
+
+const gameOverScreen = document.createElement('div');
+gameOverScreen.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+    z-index: 1000;
+`;
+gameOverScreen.innerHTML = `
+    <h2>Game Over - Time's Up!</h2>
+    <button id="restartButton" style="
+        padding: 10px 20px;
+        font-size: 16px;
+        margin-top: 20px;
+        cursor: pointer;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+    ">Restart Game</button>
+`;
+document.body.appendChild(gameOverScreen);
+
+// Timer functions
+function updateTimer() {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (timeRemaining <= 0) {
+        gameOver();
+    } else {
+        timeRemaining--;
+    }
+}
+
+function startTimer() {
+    timeRemaining = 120;
+    isGameOver = false;
+    timerInterval = setInterval(updateTimer, 1000); // call updatetimer() every 1 second
+    gameOverScreen.style.display = 'none';
+}
+
+function gameOver() {
+    clearInterval(timerInterval);
+    isGameOver = true;
+    gameOverScreen.style.display = 'block';
+}
+
+function restartGame() {
+    // Reset player position to starting position
+    for (let i = 0; i < maze_ex.length; i++) {
+        for (let j = 0; j < maze_ex[i].length; j++) {
+            if (maze_ex[i][j] === 2) {
+                player.matrix.copy(translationMatrix(
+                    j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2), 
+                    0, 
+                    i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+                ));
+                break;
+            }
+        }
+    }
+    
+    // Reset monster position
+    for (let i = 0; i < maze_ex.length; i++) {
+        for (let j = 0; j < maze_ex[i].length; j++) {
+            if (maze_ex[i][j] === 3) {
+                monster.matrix.copy(translationMatrix(
+                    j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2), 
+                    0, 
+                    i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+                ));
+                break;
+            }
+        }
+    }
+    
+    direction = still;
+    startTimer();
+}
+
+// Add event listener for restart button
+document.getElementById('restartButton').addEventListener('click', restartGame);
+
+// Start the timer when the game starts
+startTimer();
+// End of timer implemenation
+
 // Teleportation logic
 const validTeleportPositions = [];
 for (let i = 0; i < maze_ex.length; i++) {
@@ -650,6 +765,8 @@ renderer.setAnimationLoop( animate );
 
 
 function movePlayer(direction) {
+    if (isGameOver) return; // timer logic
+
     let dx = 0;
     let dz = 0;
     if (cameraMode === 1) {
@@ -774,6 +891,7 @@ let pathIndex = 0;
 const monsterDistance = moveDistance * 6 / 7;
 
 function moveMonster() {
+    if (isGameOver) return; // timer logic
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
     // teleportation logic
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
