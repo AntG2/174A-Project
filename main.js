@@ -18,6 +18,7 @@ const phong_material = new THREE.MeshPhongMaterial({
     shininess: 100   // Shininess of the material
 });
 
+let win = false;
 
 function createPlane(width, height, color, rotationX, positionY) {
     const geometry = new THREE.PlaneGeometry(width, height);
@@ -93,9 +94,42 @@ const maze_ex = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
+const mapWidth = (maze_ex[0].length + 1) * mazeBoxSize + 2*l; // Width of the maze
+const mapHeight = (maze_ex.length + 1) * mazeBoxSize + 2*l;  // Height of the maze
+
+function checkWinningCondition(player) {
+    const playerPosition = new THREE.Vector3();
+    player.matrix.decompose(playerPosition, new THREE.Quaternion(), new THREE.Vector3());
+
+    // Check if player is outside the boundaries of the maze
+    if (!win &&
+        (playerPosition.x < -mapWidth / 2 || 
+         playerPosition.x > mapWidth / 2 - mazeBoxSize || 
+         playerPosition.z < -mapHeight / 2|| 
+         playerPosition.z > mapHeight / 2 - mazeBoxSize)
+       ) {
+	console.log("Hello")
+	win = true;
+	direction = still;
+        return true; // Player has exited the maze
+    }
+    return false; // Player is still within the maze
+}
+function showWinScreen() {
+    document.getElementById('winScreen').style.display = 'block';
+}
+function restartGame() {
+    // win = false
+    // Reset player position, game state, etc.
+    document.getElementById('winScreen').style.display = 'none';
+    // Optionally reset maze or reload level
+}
+// Make restartGame globally accessible
+window.restartGame = restartGame;
+
 const wispGeometry = new THREE.SphereGeometry(l, 32, 32);
 const wispMaterial = new THREE.MeshBasicMaterial({
-    color: 0x7156B6, 
+    color: 0x6A5ACD, 
     transparent: true,
     opacity: 0.6,
     //emissive: 0x7156B6
@@ -109,7 +143,7 @@ for (let i = 0; i < particleCount; i++) {
 }
 particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 const particleMaterial = new THREE.PointsMaterial({
-    color: 0x7156B6,
+    color: 0xA0BFFF,
     size: 0.01,
     transparent: true,
     opacity: 0.6
@@ -122,7 +156,7 @@ const player = wisp;
 
 const monsterGeometry = new THREE.DodecahedronGeometry(0.3);
 const monsterMaterial = new THREE.MeshStandardMaterial({
-    color: 0x252424, 
+    color: 0xFF4500, 
     flatShading: true,
     emissive: 0xDDD8D8, 
     emissiveIntensity: 0.2,
@@ -134,9 +168,9 @@ scene.add(monster);
 
 const shardGeometry = new THREE.TetrahedronGeometry(0.1);
 const shardMaterial = new THREE.MeshStandardMaterial({
-    color: 0x252424, 
-    emissive: 0xDDD8D8, 
-    emissiveIntensity: 0.3,
+    color: 0x4B4042, 
+    emissive: 0x4B4042, 
+    emissiveIntensity: 0.1,
 });
 
 for (let i = 0; i < 8; i++) {
@@ -381,7 +415,7 @@ const wobbleSpeed = 3; // Speed of the wobble effect
 
 function createWobblyCircle() {
     const geometry = new THREE.RingGeometry(circleRadius, circleRadius + 0.01,  segments);
-    const material = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+    const material = new THREE.MeshBasicMaterial({ color: 0x005FFF, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
     wobblyCircle = new THREE.Mesh(geometry, material);
     wobblyCircle.rotation.x = Math.PI / 2; // Rotate to face upwards
     scene.add(wobblyCircle);
@@ -389,41 +423,49 @@ function createWobblyCircle() {
 let initialRotation = new THREE.Euler();
 const maxTiltAngle = Math.PI / 3; // Maximum tilt angle (30 degrees)
 
-function updateWobblyCircle(pushbackProgress) {
-    if (wobblyCircle) {
-        // Wobble effect using sine function
-	const time = pushbackProgress - pushbackTimeStart;
-        // More complex wobble effect using multiple sine waves
-        const scale = 1 + (
-            Math.sin(time * wobbleSpeed) +
-            Math.sin(time * wobbleSpeed * 1.3 + Math.PI / 4) +
-            Math.sin(time * wobbleSpeed * 0.7 + Math.PI / 2)
-        ) * wobbleAmplitude / 3;
-        wobblyCircle.scale.set(scale, scale, scale);
 
-        // More random rotation using multiple sine waves
-        const tiltY = (
-            Math.sin(time * 2.5) +
-            Math.sin(time * 3.1 + Math.PI / 3)
-        ) * maxTiltAngle * (1 - pushbackProgress) / 2;
-
-        const tiltZ = (
-            Math.sin(time * 3.7) +
-            Math.sin(time * 2.9 + Math.PI / 6)
-        ) * maxTiltAngle * (1 - pushbackProgress) / 2;
-        
-        wobblyCircle.rotation.y = initialRotation.y + tiltY;
-        wobblyCircle.rotation.z = initialRotation.z + tiltZ;
-        
-        wobblyCircle.position.copy(player.position);
-    }
-}
-
-
-
-// Call this function once when initializing your scene
 createWobblyCircle();
 
+function updateWispEffects(pushbackProgress) {
+    const time = pushbackProgress - pushbackTimeStart;
+    const wobbleSpeed = 5; // Adjust as needed
+    const wobbleAmplitude = 0.1; // Adjust as needed
+    const maxTiltAngle = Math.PI / 6; // 30 degrees
+
+    // Wobble effect
+    const scale = 1 + (
+        Math.sin(time * wobbleSpeed) +
+        Math.sin(time * wobbleSpeed * 1.3 + Math.PI / 4) +
+        Math.sin(time * wobbleSpeed * 0.7 + Math.PI / 2)
+    ) * wobbleAmplitude / 3;
+
+    // Tilt effect
+    const tiltY = (
+        Math.sin(time * 2.5) +
+        Math.sin(time * 3.1 + Math.PI / 3)
+    ) * maxTiltAngle * (1 - pushbackProgress) / 2;
+
+    const tiltZ = (
+        Math.sin(time * 3.7) +
+        Math.sin(time * 2.9 + Math.PI / 6)
+    ) * maxTiltAngle * (1 - pushbackProgress) / 2;
+
+    // Update wobbly circle
+    if (wobblyCircle) {
+        wobblyCircle.scale.set(scale, scale, scale);
+        wobblyCircle.rotation.y = initialRotation.y + tiltY;
+        wobblyCircle.rotation.z = initialRotation.z + tiltZ;
+        wobblyCircle.position.copy(player.position);
+    }
+
+    // Update particles
+    if (particles) {
+        particles.scale.set(scale, scale, scale);
+        particles.rotation.y += tiltY / 10;
+        particles.rotation.z += tiltZ / 10;
+        
+    }
+}
 
 //////// mirror visibility update interval ////////
 let lastVisibilityUpdate = 0;
@@ -741,11 +783,13 @@ function animate() {
     updateVisibleMirrors();
     // constantly check collisons
     checkCollisions();
+    const time = performance.now() * 0.003;
+    wispMaterial.opacity = 0.6 + 0.3 * Math.sin(time);
     if (ongoingPushback) {
 	const elapsedTime = clock.getElapsedTime() - pushbackTimeStart;
 	const pushbackProgress = Math.min(elapsedTime / pushbackDuration, 1);
 	const easedProgress = easeOutCubic(pushbackProgress);
-	updateWobblyCircle(pushbackProgress);
+	updateWispEffects(pushbackProgress);
 	if (pushbackProgress >= 1) {
 	    console.log(pushbackProgress);
 	    ongoingPushback = false;
@@ -754,12 +798,16 @@ function animate() {
 	    const interpolatedPosition = new THREE.Vector3().lerpVectors(pushbackStart, pushbackEnd, easedProgress);
 	    player.matrix.setPosition(interpolatedPosition);
 	}
+    } else {
+	
+	particles.rotation.y += 0.01;
     }
     wobblyCircle.position.copy(player.position);
-   // wobblyCircle.position.y -= l / 2;
-    const time = performance.now() * 0.003;
-    wispMaterial.opacity = 0.6 + 0.3 * Math.sin(time);
-    particles.rotation.y += 0.01;
+    if (checkWinningCondition(player)) {
+        showWinScreen();
+    }
+    
+    
 }
 renderer.setAnimationLoop( animate );
 
@@ -801,7 +849,7 @@ let playerRotation = 0;
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
-    if (!ongoingPushback) {
+    if (!ongoingPushback && !win) {
 	switch (event.key) {
 	case 'w':
             direction = up;
