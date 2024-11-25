@@ -119,10 +119,10 @@ function showWinScreen() {
     document.getElementById('winScreen').style.display = 'block';
 }
 function restartGame() {
+    // win = false
     // Reset player position, game state, etc.
     document.getElementById('winScreen').style.display = 'none';
     // Optionally reset maze or reload level
-    console.log("I am called")
 }
 // Make restartGame globally accessible
 window.restartGame = restartGame;
@@ -732,7 +732,7 @@ let playerRotation = 0;
 
 // Event listener for keyboard controls
 document.addEventListener('keydown', (event) => {
-    if (!ongoingPushback) {
+    if (!ongoingPushback && !win) {
 	switch (event.key) {
 	case 'w':
             direction = up;
