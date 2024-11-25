@@ -271,7 +271,7 @@ function gameOver() {
     gameOverScreen.style.display = 'block';
 }
 
-function restartGame() {
+function restartGame2() {
     // Reset player position to starting position
     for (let i = 0; i < maze_ex.length; i++) {
         for (let j = 0; j < maze_ex[i].length; j++) {
@@ -305,7 +305,7 @@ function restartGame() {
 }
 
 // Add event listener for restart button
-document.getElementById('restartButton').addEventListener('click', restartGame);
+document.getElementById('restartButton').addEventListener('click', restartGame2);
 
 // Start the timer when the game starts
 startTimer();
