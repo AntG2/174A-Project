@@ -76,26 +76,150 @@ scene.add(groundMirror);
 camera.position.set(0, 10*l, 0);
 
 // Setting up the maze
-const maze_ex = [
-    [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 3, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 2, 1, 0, 1, 1, 1, 1, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-];
+let maze_ex;
+//generateMaze(15, 15);
+let mapWidth;
+let mapHeight;
+initializeMaze(10, 10);
 
-const mapWidth = (maze_ex[0].length + 1) * mazeBoxSize + 2*l; // Width of the maze
-const mapHeight = (maze_ex.length + 1) * mazeBoxSize + 2*l;  // Height of the maze
+function initializeMaze(width, height) {
+    maze_ex = generateMaze(width, height);
+    mapWidth = (maze_ex[0].length + 1) * mazeBoxSize + 2*l; // Width of the maze
+    mapHeight = (maze_ex.length + 1) * mazeBoxSize + 2*l;  // Height of the maze
+
+}
+
+// Function to generate a random maze using Recursive Backtracking
+function generateMaze(width, height) {
+    const maze = Array.from({ length: height }, () => Array(width).fill(1)); // Initialize with walls
+
+    // Directions for moving in the maze (up, down, left, right)
+    const directions = [
+        { x: 0, y: -2 }, // Up
+        { x: 0, y: 2 },  // Down
+        { x: -2, y: 0 }, // Left
+        { x: 2, y: 0 }   // Right
+    ];
+
+    function carve(x, y) {
+        // Randomize directions
+        shuffleArray(directions);
+
+        for (const dir of directions) {
+            const newX = x + dir.x;
+            const newY = y + dir.y;
+
+            if (newX > 0 && newX < width-1 && newY > 0 && newY < height-1 && maze[newY][newX] === 1) {
+                // Carve a path between current and new cell
+                maze[y + dir.y / 2][x + dir.x / 2] = 0;
+                maze[newY][newX] = 0;
+                carve(newX, newY); // Recur for the next cell
+            }
+        }
+    }
+    
+    // Start carving from (1,1)
+    maze[1][1] = 0; // Start point
+    carve(1, 1);
+    
+
+    // randomly select player position and chaser position
+    let validPositions = [];
+    for (let i = 0; i < maze.length; i++) {
+	for (let j = 0; j < maze[i].length; j++) {
+            if (maze[i][j] === 0) {
+		validPositions.push({x: i, z: j});
+            }
+	}
+    }
+    const randomIndex = Math.floor(Math.random() * validPositions.length);
+    const playerPosition = validPositions[randomIndex];
+    validPositions.splice(randomIndex, 1)
+    const randomIndex2 = Math.floor(Math.random() * validPositions.length);
+    const chaserPosition = validPositions[randomIndex2];
+    maze[playerPosition.x][playerPosition.z] = 2
+    maze[chaserPosition.x][chaserPosition.z] = 3
+
+    // form an exit
+    const edgeCells = [];
+
+    // Collect edge cells
+    for (let i = 0; i < width; i++) {
+        edgeCells.push({ x: i, y: 0 });          // Top row
+        edgeCells.push({ x: i, y: height - 1 }); // Bottom row
+    }
+    for (let i = 1; i < height - 1; i++) {
+        edgeCells.push({ x: 0, y: i });          // Left column
+        edgeCells.push({ x: width - 1, y: i }); // Right column
+    }
+    // Randomly shuffle edge cells to pick one at random
+    shuffleArray(edgeCells);
+
+    for (const cell of edgeCells) {
+        const { x, y } = cell;
+
+        // Check neighboring cells (up, down, left, right)
+        const neighbors = [
+	    maze[y - 1]?.[x], // Up
+	    maze[y + 1]?.[x], // Down
+	    maze[y][x - 1],   // Left
+	    maze[y][x + 1]    // Right
+        ];
+
+        // If any neighbor is a path (0), make this cell a path (0)
+        if (neighbors.some(neighbor => neighbor === 0)) {
+	    maze[y][x] = 0; // Mark as exit path
+	    console.log(`Exit created at: (${y}, ${x})`);
+	    break;
+        }
+    }
+    
+    
+    console.log(maze);
+    return maze;
+}
+// Function to shuffle an array (Fisher-Yates shuffle)
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function disposeScene(scene) {
+    // Traverse through all objects in the scene
+    scene.traverse((object) => {
+        // Check if the object is a mesh
+        if (object.isMesh) {
+            // Dispose of geometry
+            if (object.geometry) {
+                object.geometry.dispose();
+                console.log("Disposed geometry:", object.geometry);
+            }
+
+            // Dispose of materials
+            if (Array.isArray(object.material)) {
+                object.material.forEach((material) => {
+                    if (material) {
+                        material.dispose();
+                        console.log("Disposed material:", material);
+                    }
+                });
+            } else if (object.material) {
+                object.material.dispose();
+                console.log("Disposed material:", object.material);
+            }
+        }
+    });
+
+    // Optionally clear the children of the scene
+    while (scene.children.length > 0) {
+        const child = scene.children[0];
+        scene.remove(child);
+    }
+
+    console.log("Scene cleared and all objects disposed.");
+}
 
 function checkWinningCondition(player) {
     const playerPosition = new THREE.Vector3();
@@ -111,6 +235,7 @@ function checkWinningCondition(player) {
 	console.log("Hello")
 	win = true;
 	direction = still;
+	clearInterval(timerInterval);
         return true; // Player has exited the maze
     }
     return false; // Player is still within the maze
@@ -119,8 +244,14 @@ function showWinScreen() {
     document.getElementById('winScreen').style.display = 'block';
 }
 function restartGame() {
-    // win = false
-    // Reset player position, game state, etc.
+    // Reset player position, game state
+    win = false;
+    // may change and add difficulty level
+    initializeMaze(10, 10);
+    
+    //disposeScene(scene);
+    createMaze(maze_ex);
+    startTimer();
     document.getElementById('winScreen').style.display = 'none';
     // Optionally reset maze or reload level
 }
@@ -150,7 +281,6 @@ const particleMaterial = new THREE.PointsMaterial({
 });
 
 const particles = new THREE.Points(particleGeometry, particleMaterial);
-scene.add(wisp); 
 wisp.add(particles); 
 const player = wisp;
 
@@ -164,7 +294,6 @@ const monsterMaterial = new THREE.MeshStandardMaterial({
 const monster = new THREE.Mesh(monsterGeometry, monsterMaterial);
 monster.castShadow = true;
 monster.receiveShadow = true;
-scene.add(monster);
 
 const shardGeometry = new THREE.TetrahedronGeometry(0.1);
 const shardMaterial = new THREE.MeshStandardMaterial({
@@ -241,7 +370,7 @@ gameOverScreen.innerHTML = `
         color: white;
         border: none;
         border-radius: 5px;
-    ">Restart Game</button>
+    ">Try Again</button>
 `;
 document.body.appendChild(gameOverScreen);
 
@@ -334,6 +463,8 @@ function teleportPlayer(excludeX, excludeZ) {
         const randomIndex = Math.floor(Math.random() * availablePositions.length);
         const newPosition = availablePositions[randomIndex];
         player.matrix.copy(translationMatrix(newPosition.x, 0, newPosition.z));
+	ongoingPushback = false;
+	
     }
 }
 // end of teleportation logic
@@ -586,6 +717,8 @@ function isFacingEmpty(maze, i, j) {
     return maze[i][j] === 0 || maze[i][j] === 2 || maze[i][j] === 3;
 }
 
+const maxMirrorCount = 100;
+
 function createMaze(maze) {
     const wallGeometry = new THREE.BoxGeometry(mazeBoxSize, mazeHeight, mazeBoxSize);
     const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xf0f0f0 });
@@ -605,24 +738,24 @@ function createMaze(maze) {
                 );
                 scene.add(wall);
        
-                if (i > 0 && isFacingEmpty(maze, i - 1, j)  && counter1 <= 50) {  
+                if (i > 0 && isFacingEmpty(maze, i - 1, j)  && counter1 <= maxMirrorCount) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z - mazeBoxSize / 2 - offset),
                         Math.PI);
                     counter1+=1;
                 }
-                if (i < maze.length - 1 && isFacingEmpty(maze, i + 1, j) && counter2 <= 50) {  
+                if (i < maze.length - 1 && isFacingEmpty(maze, i + 1, j) && counter2 <= maxMirrorCount) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x, wall.position.y, wall.position.z + mazeBoxSize / 2 + offset),
                         0);
                 }
-                if (j > 0 && isFacingEmpty(maze, i, j - 1) && counter3 <= 50) {  
+                if (j > 0 && isFacingEmpty(maze, i, j - 1) && counter3 <= maxMirrorCount) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x - mazeBoxSize / 2 - offset, wall.position.y, wall.position.z),
                         -Math.PI / 2);
                 }
     
-                if (j < maze[i].length - 1 && isFacingEmpty(maze, i, j + 1)  && counter4 <= 51) {  
+                if (j < maze[i].length - 1 && isFacingEmpty(maze, i, j + 1)  && counter4 <= maxMirrorCount) {  
                     createMirror(mazeBoxSize, mazeHeight, 
                         new THREE.Vector3(wall.position.x + mazeBoxSize / 2 + offset, wall.position.y, wall.position.z),
                         Math.PI / 2);
@@ -777,7 +910,8 @@ function animate() {
     let matrix = new THREE.Matrix4();
     matrix.copy(player.matrix);
     movePlayer(direction);
-    moveMonster();
+    if (!win)
+	moveMonster();
     
     updateCameraPosition();
     updateVisibleMirrors();
@@ -793,7 +927,6 @@ function animate() {
 	if (pushbackProgress >= 1) {
 	    console.log(pushbackProgress);
 	    ongoingPushback = false;
-	    player.matrix.setPosition(pushbackEnd);
 	} else {
 	    const interpolatedPosition = new THREE.Vector3().lerpVectors(pushbackStart, pushbackEnd, easedProgress);
 	    player.matrix.setPosition(interpolatedPosition);
@@ -936,7 +1069,7 @@ const interval = 1000;
 
 let path = [];
 let pathIndex = 0;
-const monsterDistance = moveDistance * 6 / 7;
+const monsterDistance = moveDistance;
 
 function moveMonster() {
     if (isGameOver) return; // timer logic
@@ -1028,10 +1161,6 @@ class Node {
 // manhattan distance heuristic; admissible, finds optimal path
 function heuristic1(a, b) {
     return Math.abs(b.row - a.row) + Math.abs(b.col - a.col);
-}
-
-function heuristic0(a, b) {
-    return 10;
 }
 
 
@@ -1134,22 +1263,11 @@ function toGridPosition(x, z) {
 }
 
 
-
-let difficulty = 1;
-
 function findMonsterPath() {
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix)
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix)
-    let heuristic;
-    switch (difficulty) {
-    case 1:
-	heuristic = heuristic1;
-	break;
-    default:
-	heuristic = heuristic0;
-    }
     // test
-    path = aStar(maze_ex, toGridPosition(monsterPosition.x, monsterPosition.z), toGridPosition(playerPosition.x, playerPosition.z), heuristic);
+    path = aStar(maze_ex, toGridPosition(monsterPosition.x, monsterPosition.z), toGridPosition(playerPosition.x, playerPosition.z), heuristic1);
     console.log(path);
     pathIndex = 0;
 }
