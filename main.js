@@ -243,18 +243,91 @@ function checkWinningCondition(player) {
 function showWinScreen() {
     document.getElementById('winScreen').style.display = 'block';
 }
+
+// Try to fix the clean up maze issue
 function restartGame() {
     // Reset player position, game state
     win = false;
+    isGameOver = false;
+    direction = still;
+    clearInterval(timerInterval);
+    document.getElementById('winScreen').style.display = 'none';
+    gameOverScreen.style.display = 'none';
+    while (scene.children.length > 0) {
+        scene.remove(scene.children[0]);
+    }
+
+    wallBBes.length = 0;
+    mirrors.length = 0;
+    mirrorBBes.length = 0;
+    scene.add(ground);
+    scene.add(ceiling);
+    scene.add(backWall);
+    scene.add(leftWall);
+    scene.add(rightWall);
+    scene.add(frontWall);
+    scene.add(groundMirror);
+    scene.add(wobblyCircle);
+
+    setupLights();
     // may change and add difficulty level
     initializeMaze(10, 10);
     
     //disposeScene(scene);
     createMaze(maze_ex);
+    resetPlayerAndMonster();
     startTimer();
-    document.getElementById('winScreen').style.display = 'none';
+
     // Optionally reset maze or reload level
 }
+function resetPlayerAndMonster() {
+    // Reset player position
+    for (let i = 0; i < maze_ex.length; i++) {
+        for (let j = 0; j < maze_ex[i].length; j++) {
+            if (maze_ex[i][j] === 2) {
+                player.matrix.copy(translationMatrix(
+                    j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+                    0,
+                    i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+                ));
+                break;
+            }
+        }
+    }
+
+    // Reset monster position
+    for (let i = 0; i < maze_ex.length; i++) {
+        for (let j = 0; j < maze_ex[i].length; j++) {
+            if (maze_ex[i][j] === 3) {
+                monster.matrix.copy(translationMatrix(
+                    j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+                    0,
+                    i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+                ));
+                break;
+            }
+        }
+    }
+
+    player.matrixAutoUpdate = false;
+    monster.matrixAutoUpdate = false;
+}
+// Setup lights
+function setupLights() {
+    const pointLight = new THREE.PointLight(0xffffff, 100, 100); 
+    pointLight.position.set(0, mazeHeight * 1.5, 0);
+    pointLight.castShadow = true;
+    scene.add(pointLight);
+
+    const ambientLight = new THREE.AmbientLight(0x606060, 0.6); 
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); 
+    directionalLight.position.set(10, mazeHeight * 2, 10);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+}
+///// End of Fix clean up issue ////
 // Make restartGame globally accessible
 window.restartGame = restartGame;
 
@@ -441,19 +514,19 @@ startTimer();
 // End of timer implemenation
 
 // Teleportation logic
-const validTeleportPositions = [];
-for (let i = 0; i < maze_ex.length; i++) {
-    for (let j = 0; j < maze_ex[i].length; j++) {
-        if (maze_ex[i][j] === 0) {
-            validTeleportPositions.push({
-                x: j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
-                z: i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
-            });
-        }
-    }
-}
 
 function teleportPlayer(excludeX, excludeZ) {
+    const validTeleportPositions = [];
+    for (let i = 0; i < maze_ex.length; i++) {
+        for (let j = 0; j < maze_ex[i].length; j++) {
+            if (maze_ex[i][j] === 0) {
+                validTeleportPositions.push({
+                    x: j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+                    z: i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+                });
+            }
+        }
+    }
     // Filter out the excluded position - where the player been caught
     const availablePositions = validTeleportPositions.filter(pos => 
         !(Math.abs(pos.x - excludeX) < 0.1 && Math.abs(pos.z - excludeZ) < 0.1)
