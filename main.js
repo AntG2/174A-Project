@@ -566,13 +566,46 @@ startTimer();
 
 function teleportPlayer(excludeX, excludeZ) {
     const validTeleportPositions = [];
+    const exitPoints = [];
+    // Find exit points (cells adjacent to maze boundaries)
     for (let i = 0; i < maze_ex.length; i++) {
         for (let j = 0; j < maze_ex[i].length; j++) {
-            if (maze_ex[i][j] === 0) {
-                validTeleportPositions.push({
+            // If this is a path (0) and it's on the edge
+            if (maze_ex[i][j] === 0 && 
+                (i === 0 || i === maze_ex.length - 1 || j === 0 || j === maze_ex[i].length - 1)) {
+                exitPoints.push({
                     x: j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
                     z: i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
                 });
+            }
+        }
+    }
+    // Collect valid teleport positions
+    for (let i = 0; i < maze_ex.length; i++) {
+        for (let j = 0; j < maze_ex[i].length; j++) {
+            if (maze_ex[i][j] === 0) {
+                const position = {
+                    x: j * mazeBoxSize - (maze_ex[0].length * mazeBoxSize / 2),
+                    z: i * mazeBoxSize - (maze_ex.length * mazeBoxSize / 2)
+                };
+
+                // Check distance to all exit points
+                let isSafeDistance = true;
+                for (const exitPoint of exitPoints) {
+                    const distanceToExit = Math.sqrt(
+                        Math.pow(position.x - exitPoint.x, 2) + 
+                        Math.pow(position.z - exitPoint.z, 2)
+                    );
+                    
+                    // If position is too close to any exit, mark it as unsafe
+                    if (distanceToExit < 3 * mazeBoxSize) { // Adjust this value to control safe distance
+                        isSafeDistance = false;
+                        break;
+                    }
+                }
+                if (isSafeDistance) {
+                    validTeleportPositions.push(position);
+                }
             }
         }
     }
