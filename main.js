@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 
-
 const scene = new THREE.Scene();
 
 //THREE.PerspectiveCamera( fov angle, aspect ratio, near depth, far depth );
@@ -35,8 +34,8 @@ const mazeHeight = 8
 const mazeBoxSize = 1
 
 // Ground
-const ground = createPlane(boxSize, boxSize, 0x808080, -Math.PI / 2, 0 - l);
-scene.add(ground);
+// const ground = createPlane(boxSize, boxSize, 0x808080, -Math.PI / 2, 0 - l);
+// scene.add(ground);
 
 const ceiling = createPlane(boxSize, boxSize, 0x808080, Math.PI / 2, mazeHeight - l);
 scene.add(ceiling);
@@ -62,19 +61,66 @@ const frontWall = createPlane(boxSize, boxSize, 0xA0A0A0, 0, boxSize / 2 - l);
 frontWall.position.z = boxSize / 2;
 scene.add(frontWall);
 
-const geometry = new THREE.PlaneGeometry(boxSize, boxSize);
-const groundMirror = new Reflector(geometry, {
-    clipBias: 0.003,
-    textureWidth: 512,
-    textureHeight: 512
-    //color: 0x808080
-});
-groundMirror.position.set(0, -l + 0.01, 0);
-groundMirror.rotation.x = -Math.PI / 2;
-scene.add(groundMirror);
+// const geometry = new THREE.PlaneGeometry(boxSize, boxSize);
+// const groundMirror = new Reflector(geometry, {
+//     clipBias: 0.003,
+//     textureWidth: 512,
+//     textureHeight: 512
+//     //color: 0x808080
+// });
+// groundMirror.position.set(0, -l + 0.01, 0);
+// groundMirror.rotation.x = -Math.PI / 2;
+// scene.add(groundMirror);
 
 camera.position.set(0, 10*l, 0);
+/// Bump mapping////
+function createMazeFloor(width, height) {
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Load textures
+    // -----------------------CHANGE TEXTURE HERE------------------////
+    // const baseColorMap = textureLoader.load('./textures/wood_floor_worn_diff_1k.jpg');
+    // const normalMap = textureLoader.load('./textures/wood_floor_worn_nor_gl_1k.exr');
+    // const roughnessMap = textureLoader.load('./textures/wood_floor_worn_rough_1k.exr');
+    // const bumpMap = textureLoader.load('./textures/wood_floor_worn_disp_1k.png');
+    const baseColorMap = textureLoader.load('./textures2/dry_riverbed_rock_diff_1k.jpg');
+    const normalMap = textureLoader.load('./textures2/dry_riverbed_rock_nor_gl_1k.exr');
+    const roughnessMap = textureLoader.load('./textures2/dry_riverbed_rock_rough_1k.exr');
+    const bumpMap = textureLoader.load('./textures2/dry_riverbed_rock_disp_1k.png');
 
+    // Configure textures
+    [baseColorMap, normalMap, roughnessMap, bumpMap].forEach(texture => {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(30, 30); // Adjust how small the texture pattern here, the bigger the number, the smaller the pattern
+    });
+
+    // Create material
+    const material = new THREE.MeshStandardMaterial({
+        map: baseColorMap,
+        normalMap: normalMap,
+        roughnessMap: roughnessMap,
+        bumpMap: bumpMap,
+        bumpScale: 0.05,
+        roughness: 0.8,
+        metalness: 0.1
+    });
+
+    // Create geometry with more segments for better bump mapping
+    const geometry = new THREE.PlaneGeometry(width, height, 100, 100);
+    const floor = new THREE.Mesh(geometry, material);
+    
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -l;
+    floor.receiveShadow = true;
+    
+    return floor;
+}
+
+// Create and add the floor
+const mazeFloor = createMazeFloor(boxSize, boxSize);
+scene.add(mazeFloor);
+//// end of bump mapping ////
 // Setting up the maze
 let maze_ex;
 //generateMaze(15, 15);
@@ -260,13 +306,16 @@ function restartGame() {
     wallBBes.length = 0;
     mirrors.length = 0;
     mirrorBBes.length = 0;
-    scene.add(ground);
+    // Recreate the ground with bump mapping
+    const mazeFloor = createMazeFloor(boxSize, boxSize);
+    scene.add(mazeFloor);
+    // scene.add(ground);
     scene.add(ceiling);
     scene.add(backWall);
     scene.add(leftWall);
     scene.add(rightWall);
     scene.add(frontWall);
-    scene.add(groundMirror);
+    // scene.add(groundMirror);
     scene.add(wobblyCircle);
 
     setupLights();
@@ -979,7 +1028,7 @@ function animate() {
     renderer.shadowMap.enabled = true;
     wisp.castShadow = true;
     wisp.receiveShadow = true;
-    groundMirror.receiveShadow = true;
+    // groundMirror.receiveShadow = true;
     let matrix = new THREE.Matrix4();
     matrix.copy(player.matrix);
     movePlayer(direction);
