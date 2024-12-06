@@ -20,7 +20,9 @@ const phong_material = new THREE.MeshPhongMaterial({
 
 let win = false;
 
-let difficulty = 'easy'; 
+let difficulty = 'easy';
+
+const mazeDimensions = 12;
 
 window.startGame = function(selectedDifficulty) {
     difficulty = selectedDifficulty;
@@ -28,6 +30,7 @@ window.startGame = function(selectedDifficulty) {
     applyDifficultySettings(); 
     restartGame(); 
 };
+
 
 function applyDifficultySettings() {
     if (difficulty === 'easy') {
@@ -141,10 +144,9 @@ mazeFloor.receiveShadow = true;
 //// end of bump mapping ////
 // Setting up the maze
 let maze_ex;
-//generateMaze(15, 15);
 let mapWidth;
 let mapHeight;
-initializeMaze(12, 12);
+initializeMaze(mazeDimensions, mazeDimensions);
 
 function initializeMaze(width, height) {
     maze_ex = generateMaze(width, height);
@@ -189,8 +191,8 @@ function generateMaze(width, height) {
 
     // randomly select player position and chaser position
     let validPositions = [];
-    for (let i = 0; i < maze.length; i++) {
-	for (let j = 0; j < maze[i].length; j++) {
+    for (let i = height / 4; i < height * 3 / 4; i++) {
+	for (let j = width / 4; j < width * 3 / 4; j++) {
             if (maze[i][j] === 0) {
 		validPositions.push({x: i, z: j});
             }
@@ -342,7 +344,7 @@ function restartGame() {
 
     setupLights();
     // may change and add difficulty level
-    initializeMaze(12, 12);
+    initializeMaze(mazeDimensions, mazeDimensions);
     
     //disposeScene(scene);
     createMaze(maze_ex);
@@ -447,44 +449,57 @@ wisp.add(particles);
 
 const player = wisp;
 player.castShadow = true;
-
+/*
 const monsterGeometry = new THREE.DodecahedronGeometry(0.3);
 const monsterMaterial = new THREE.MeshStandardMaterial({
-    color: 0xfafafa, 
+    color: 0xDDD8D8, 
     flatShading: true,
-    emissive: 0xDDD8D8, 
+    emissive: 0xFF4500, 
     emissiveIntensity: 0.2,
+});
+*/
+const monsterGeometry = new THREE.SphereGeometry(l*1.5, 32, 32);
+const monsterMaterial = new THREE.MeshBasicMaterial({
+    color: 0xBF7530,
+    transparent: true,
+    opacity: 0.6
 });
 const monster = new THREE.Mesh(monsterGeometry, monsterMaterial);
 monster.castShadow = true;
 monster.receiveShadow = true;
 
-const shardGeometry = new THREE.TetrahedronGeometry(0.1);
-const shardMaterial = new THREE.MeshStandardMaterial({
-    color: 0x4B4042, 
-    emissive: 0x4B4042, 
+// Replace shards with friendlier "bubbles"
+const bubbleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+const bubbleMaterial = new THREE.MeshStandardMaterial({
+    color: 0x9DB8D6,
+    emissive: 0x8DB8C6,
     emissiveIntensity: 0.1,
+    transparent: true,
+    opacity: 0.5,
 });
 
 for (let i = 0; i < 8; i++) {
-    const shard = new THREE.Mesh(shardGeometry, shardMaterial);
-    shard.position.set(
-        (Math.random() - 0.5) * 0.3 * 1.5,
-        (Math.random() - 0.5) * 0.3 * 1.5,
-        (Math.random() - 0.5) * 0.3 * 1.5
+    const bubble = new THREE.Mesh(bubbleGeometry, bubbleMaterial);
+    bubble.position.set(
+        (Math.random() - 0.5) * 0.3 * 3*l,
+        (Math.random() - 0.5) * 0.3 * 3*l,
+        (Math.random() - 0.5) * 0.3 * 3*l
     );
-    shard.castShadow = true;
-    shard.receiveShadow = true;
-    monster.add(shard);
+    bubble.scale.setScalar(0.5 + Math.random() * 0.5); // Vary bubble sizes
+    bubble.castShadow = true;
+    bubble.receiveShadow = true;
+    monster.add(bubble);
 }
 
 function animateMonster() {
+    const time = performance.now() * 0.001;
     monster.rotation.x += 0.01;
     monster.rotation.y += 0.01;
     monster.children.forEach((shard, index) => {
-        shard.position.x += Math.sin(performance.now() * 0.001 + index) * 0.005;
-        shard.position.y += Math.cos(performance.now() * 0.001 + index) * 0.005;
+        shard.position.x += Math.sin(time + index) * 0.005;
+        shard.position.y += Math.cos(time + index) * 0.005;
     });
+    monster.scale.setScalar(1 + Math.sin(time * 2) * 0.05);
     requestAnimationFrame(animateMonster);
 }
 
@@ -640,7 +655,7 @@ function teleportPlayer(excludeX, excludeZ) {
                     );
                     
                     // If position is too close to any exit, mark it as unsafe
-                    if (distanceToExit < 3 * mazeBoxSize) { // Adjust this value to control safe distance
+                    if (distanceToExit < mazeDimensions / 2 * mazeBoxSize) { // Adjust this value to control safe distance
                         isSafeDistance = false;
                         break;
                     }
@@ -1123,6 +1138,7 @@ function animate() {
     checkCollisions();
     const time = performance.now() * 0.003;
     wispMaterial.opacity = 0.6 + 0.3 * Math.sin(time);
+    monsterMaterial.opacity = 0.6 + 0.3 * Math.sin(time * 0.77);
     if (ongoingPushback) {
 	const elapsedTime = clock.getElapsedTime() - pushbackTimeStart;
 	const pushbackProgress = Math.min(elapsedTime / pushbackDuration, 1);
@@ -1273,7 +1289,7 @@ const interval = 1000;
 
 let path = [];
 let pathIndex = 0;
-const monsterDistance = 0.7 * moveDistance;
+const monsterDistance = 0.85 * moveDistance;
 let playerPosition;
 function moveMonster() {
     if (isGameOver) return; // timer logic
@@ -1478,3 +1494,5 @@ function findMonsterPath() {
 // in milliseconds
 const interval2 = 500;
 const intervalId2 = setInterval(findMonsterPath, interval2);
+
+setupLights();
