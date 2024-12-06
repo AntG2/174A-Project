@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+
 
 const scene = new THREE.Scene();
 
@@ -18,6 +19,27 @@ const phong_material = new THREE.MeshPhongMaterial({
 });
 
 let win = false;
+
+let difficulty = 'easy'; 
+
+window.startGame = function(selectedDifficulty) {
+    difficulty = selectedDifficulty;
+    direction = still;
+    applyDifficultySettings(); 
+    restartGame(); 
+};
+
+function applyDifficultySettings() {
+    if (difficulty === 'easy') {
+        setupLights('easy');
+    } else if (difficulty === 'medium') {
+        setupLights('medium');
+    } else if (difficulty === 'hard') {
+        setupLights('hard');
+        cameraMode = 2; 
+    }
+}
+
 
 function createPlane(width, height, color, rotationX, positionY) {
     const geometry = new THREE.PlaneGeometry(width, height);
@@ -76,38 +98,33 @@ camera.position.set(0, 10*l, 0);
 /// Bump mapping////
 function createMazeFloor(width, height) {
     const textureLoader = new THREE.TextureLoader();
-    
-    // Load textures
-    // -----------------------CHANGE TEXTURE HERE------------------////
-    // const baseColorMap = textureLoader.load('./textures/wood_floor_worn_diff_1k.jpg');
-    // const normalMap = textureLoader.load('./textures/wood_floor_worn_nor_gl_1k.exr');
-    // const roughnessMap = textureLoader.load('./textures/wood_floor_worn_rough_1k.exr');
-    // const bumpMap = textureLoader.load('./textures/wood_floor_worn_disp_1k.png');
-    const baseColorMap = textureLoader.load('./textures2/dry_riverbed_rock_diff_1k.jpg');
-    const normalMap = textureLoader.load('./textures2/dry_riverbed_rock_nor_gl_1k.exr');
-    const roughnessMap = textureLoader.load('./textures2/dry_riverbed_rock_rough_1k.exr');
-    const bumpMap = textureLoader.load('./textures2/dry_riverbed_rock_disp_1k.png');
+    const exrLoader = new EXRLoader();
 
-    // Configure textures
-    [baseColorMap, normalMap, roughnessMap, bumpMap].forEach(texture => {
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(30, 30); // Adjust how small the texture pattern here, the bigger the number, the smaller the pattern
+    const diffuseMap = textureLoader.load('./textures/painted_concrete_02_diff_1k.png');
+    const displacementMap = textureLoader.load('./textures/painted_concrete_02_disp_1k.png');
+    const normalMap = textureLoader.load('./textures/painted_concrete_02_nor_gl_1k.png');
+    const roughnessMap = textureLoader.load('./textures/painted_concrete_02_rough_1k.png');
+
+    [diffuseMap, displacementMap, normalMap, roughnessMap].forEach((map) => {
+        if (map) {
+            map.wrapS = THREE.RepeatWrapping;
+            map.wrapT = THREE.RepeatWrapping;
+            map.repeat.set(10, 10);
+        }
     });
 
-    // Create material
-    const material = new THREE.MeshStandardMaterial({
-        map: baseColorMap,
+    const material = new THREE.MeshPhysicalMaterial({
+        map: diffuseMap,
         normalMap: normalMap,
         roughnessMap: roughnessMap,
-        bumpMap: bumpMap,
-        bumpScale: 0.05,
-        roughness: 0.8,
-        metalness: 0.1
+        displacementMap: displacementMap,
+        displacementScale: 0.1,
+        roughness: 1.0,
+        metalness: 0.0,
     });
 
     // Create geometry with more segments for better bump mapping
-    const geometry = new THREE.PlaneGeometry(width, height, 100, 100);
+    const geometry = new THREE.PlaneGeometry(width, height, 256, 256);
     const floor = new THREE.Mesh(geometry, material);
     
     floor.rotation.x = -Math.PI / 2;
@@ -120,6 +137,7 @@ function createMazeFloor(width, height) {
 // Create and add the floor
 const mazeFloor = createMazeFloor(boxSize, boxSize);
 scene.add(mazeFloor);
+mazeFloor.receiveShadow = true;
 //// end of bump mapping ////
 // Setting up the maze
 let maze_ex;
@@ -215,7 +233,7 @@ function generateMaze(width, height) {
         // If any neighbor is a path (0), make this cell a path (0)
         if (neighbors.some(neighbor => neighbor === 0)) {
 	    maze[y][x] = 0; // Mark as exit path
-	    console.log(`Exit created at: (${y}, ${x})`);
+	    //console.log(`Exit created at: (${y}, ${x})`);
 	    break;
 	    // make sure there is only one exit
         }
@@ -281,6 +299,7 @@ function checkWinningCondition(player) {
 	console.log("Hello")
 	win = true;
 	direction = still;
+    moveSound.pause();
 	clearInterval(timerInterval);
         return true; // Player has exited the maze
     }
@@ -296,6 +315,7 @@ function restartGame() {
     win = false;
     isGameOver = false;
     direction = still;
+    moveSound.pause();
     clearInterval(timerInterval);
     document.getElementById('winScreen').style.display = 'none';
     gameOverScreen.style.display = 'none';
@@ -306,6 +326,8 @@ function restartGame() {
     wallBBes.length = 0;
     mirrors.length = 0;
     mirrorBBes.length = 0;
+    direction = still;
+    document.getElementById('difficultyScreen').style.display = 'block';
     // Recreate the ground with bump mapping
     const mazeFloor = createMazeFloor(boxSize, boxSize);
     scene.add(mazeFloor);
@@ -363,19 +385,36 @@ function resetPlayerAndMonster() {
 }
 // Setup lights
 function setupLights() {
-    const pointLight = new THREE.PointLight(0xffffff, 100, 100); 
-    pointLight.position.set(0, mazeHeight * 1.5, 0);
-    pointLight.castShadow = true;
-    scene.add(pointLight);
+    if (difficulty === 'easy') {
+        const ambientLight = new THREE.AmbientLight(0x606060, 2); 
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(10, mazeHeight * 2, 10);
+        directionalLight.castShadow = true; 
+        directionalLight.shadow.mapSize.width = 1024; 
+        directionalLight.shadow.mapSize.height = 1024;
+        scene.add(ambientLight, directionalLight);
+    } else if (difficulty === 'medium') {
+        const pointLight = new THREE.PointLight(0xffffff, 1.5, 200);
+        const pointLight2 = new THREE.PointLight(0xffffff, 1.5, 200);
+        pointLight2.position.set(-5, l, 5);
+        pointLight.castShadow = true; 
+        pointLight.shadow.mapSize.width = 1024; 
+        pointLight.shadow.mapSize.height = 1024;
+        pointLight2.castShadow = true; 
+        pointLight2.shadow.mapSize.width = 1024; 
+        pointLight2.shadow.mapSize.height = 1024;
+        const ambientLight = new THREE.AmbientLight(0x202020, 6); 
+        scene.add(ambientLight);
+        scene.add(pointLight);
+        scene.add(pointLight2);
 
-    const ambientLight = new THREE.AmbientLight(0x606060, 0.6); 
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); 
-    directionalLight.position.set(10, mazeHeight * 2, 10);
-    directionalLight.castShadow = true;
-    scene.add(directionalLight);
+      } else {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.05); 
+        scene.add(ambientLight);
+    }
+       
 }
+
 ///// End of Fix clean up issue ////
 // Make restartGame globally accessible
 window.restartGame = restartGame;
@@ -407,10 +446,11 @@ wisp.add(particles);
 
 
 const player = wisp;
+player.castShadow = true;
 
 const monsterGeometry = new THREE.DodecahedronGeometry(0.3);
 const monsterMaterial = new THREE.MeshStandardMaterial({
-    color: 0xFF4500, 
+    color: 0xfafafa, 
     flatShading: true,
     emissive: 0xDDD8D8, 
     emissiveIntensity: 0.2,
@@ -950,6 +990,7 @@ camera.layers.enable(1);
 createMaze(maze_ex);
 
 // Setting up the lights
+/*
 const pointLight = new THREE.PointLight(0xffffff, 100, 100); 
 pointLight.position.set(0, mazeHeight * 1.5, 0);
 pointLight.castShadow = true;
@@ -962,6 +1003,7 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
 directionalLight.position.set(10, mazeHeight * 2, 10);
 directionalLight.castShadow = true;
 scene.add(directionalLight);
+*/
 
 function translationMatrix(tx, ty, tz) {
     return new THREE.Matrix4().set(
@@ -1007,6 +1049,11 @@ let currentLookAt = new THREE.Vector3();
 let firstFrame = true;
 
 function updateCameraPosition() {
+    if (difficulty === "hard") {
+        cameraMode = 2; 
+    } else if (difficulty === "medium" || difficulty === "easy") {
+        cameraMode = cameraMode; 
+    }    
     let playerPosition = new THREE.Vector3();
     playerPosition.setFromMatrixPosition(player.matrix);
     if (cameraMode === 1) { // third person
@@ -1217,7 +1264,7 @@ const bumpSound = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 bgm.autoplay = true;
 audioLoader.load('audio/bgm.mp3', buffer => { bgm.setBuffer(buffer); bgm.setLoop(true); bgm.play(); });
-audioLoader.load('audio/move.mp3', buffer => { moveSound.setBuffer(buffer); moveSound.setLoop(true);});
+audioLoader.load('audio/move.mp3', buffer => { moveSound.setBuffer(buffer); moveSound.setLoop(true); moveSound.setVolume(0.4);});
 audioLoader.load('audio/bump.mp3', buffer => {bumpSound.setBuffer(buffer); });
 
 
@@ -1226,15 +1273,15 @@ const interval = 1000;
 
 let path = [];
 let pathIndex = 0;
-const monsterDistance = moveDistance;
-
+const monsterDistance = 0.7 * moveDistance;
+let playerPosition;
 function moveMonster() {
     if (isGameOver) return; // timer logic
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
     // teleportation logic
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
-    // Check for intersection/catch and Don't catch player during pushback
-    if (monsterPosition.distanceTo(playerPosition) < 0.2 && !ongoingPushback) { 
+    // Check for intersection/catch
+    if (monsterPosition.distanceTo(playerPosition) < 0.2) { 
         teleportPlayer(playerPosition.x, playerPosition.z);
         return;  // Skip movement for this frame
     }
@@ -1425,7 +1472,7 @@ function findMonsterPath() {
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix)
     // test
     path = aStar(maze_ex, toGridPosition(monsterPosition.x, monsterPosition.z), toGridPosition(playerPosition.x, playerPosition.z), heuristic1);
-    console.log(path);
+    //console.log(path);
     pathIndex = 0;
 }
 // in milliseconds

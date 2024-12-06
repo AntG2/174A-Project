@@ -1,18 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<title>Mirror Maze</title>
-		<style>
-			body { margin: 0; }
-		</style>
-	</head>
-	<body>
-	  <script type="module" src="/main.js"></script>
-	  <div id="winScreen" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #000428, #004e92);
+            overflow: hidden;
+        }
+		#difficultyScreen {
+			position: fixed;
+			top: 7%;
+			left: 120%;
+			transform: translate(-50%, -50%);
+			width: 100%;
+			height: auto;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			background: transparent;
+			z-index: 10000;
+		}
+        #difficultyScreen h1 {
+            font-size: 3rem;
+            margin-bottom: 30px;
+            color: white;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+        .difficulty-button {
+            padding: 15px 40px;
+            margin: 10px;
+            border: none;
+            font-size: 1.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        .difficulty-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="difficultyScreen" style="display: block;">
+        <button class="difficulty-button" onclick="setDifficulty('easy')">Easy</button>
+        <button class="difficulty-button" onclick="setDifficulty('medium')">Medium</button>
+        <button class="difficulty-button" onclick="setDifficulty('hard')">Hard</button>
+    </div>
+	<script type="module" src="main.js"></script>
+    <script>
+        function setDifficulty(level) {
+            localStorage.setItem('difficulty', level);
+            document.getElementById('difficultyScreen').style.display = 'none';
+            startGame(level); 
+        }
+    </script>
+	<div id="winScreen" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 20px; border-radius: 10px; text-align: center;">
 	    <h1>You Win!</h1>
 	    <button onclick="restartGame()">Play Again</button>
 </div>
 
-	</body>
+
+</body>
 </html>
