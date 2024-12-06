@@ -11,7 +11,7 @@ const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.inner
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(window.devicePixelRatio * 0.5);
 
 const phong_material = new THREE.MeshPhongMaterial({
     color: 0xffffff, // White color
@@ -127,7 +127,7 @@ function createMazeFloor(width, height) {
     });
 
     // Create geometry with more segments for better bump mapping
-    const geometry = new THREE.PlaneGeometry(width, height, 256, 256);
+    const geometry = new THREE.PlaneGeometry(width, height, 128, 128);
     const floor = new THREE.Mesh(geometry, material);
     
     floor.rotation.x = -Math.PI / 2;
@@ -1123,6 +1123,7 @@ const moveDistance = 0.015;
 function animate() {
     renderer.render( scene, camera );
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     wisp.castShadow = true;
     wisp.receiveShadow = true;
     // groundMirror.receiveShadow = true;
