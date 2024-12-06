@@ -126,7 +126,7 @@ let maze_ex;
 //generateMaze(15, 15);
 let mapWidth;
 let mapHeight;
-initializeMaze(10, 10);
+initializeMaze(12, 12);
 
 function initializeMaze(width, height) {
     maze_ex = generateMaze(width, height);
@@ -217,11 +217,11 @@ function generateMaze(width, height) {
 	    maze[y][x] = 0; // Mark as exit path
 	    console.log(`Exit created at: (${y}, ${x})`);
 	    break;
+	    // make sure there is only one exit
         }
     }
     
-    
-    console.log(maze);
+    // console.log(maze);
     return maze;
 }
 // Function to shuffle an array (Fisher-Yates shuffle)
@@ -320,7 +320,7 @@ function restartGame() {
 
     setupLights();
     // may change and add difficulty level
-    initializeMaze(10, 10);
+    initializeMaze(12, 12);
     
     //disposeScene(scene);
     createMaze(maze_ex);
@@ -385,7 +385,7 @@ const wispMaterial = new THREE.MeshBasicMaterial({
     color: 0x6A5ACD, 
     transparent: true,
     opacity: 0.6,
-    //emissive: 0x7156B6
+    //emissive: 0xFF56B6
 });
 const wisp = new THREE.Mesh(wispGeometry, wispMaterial);
 const particleCount = 25;
@@ -403,7 +403,9 @@ const particleMaterial = new THREE.PointsMaterial({
 });
 
 const particles = new THREE.Points(particleGeometry, particleMaterial);
-wisp.add(particles); 
+wisp.add(particles);
+
+
 const player = wisp;
 
 const monsterGeometry = new THREE.DodecahedronGeometry(0.3);
