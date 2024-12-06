@@ -1231,8 +1231,8 @@ function moveMonster() {
     const monsterPosition = new THREE.Vector3().setFromMatrixPosition(monster.matrix);
     // teleportation logic
     const playerPosition = new THREE.Vector3().setFromMatrixPosition(player.matrix);
-    // Check for intersection/catch
-    if (monsterPosition.distanceTo(playerPosition) < 0.2) { 
+    // Check for intersection/catch and Don't catch player during pushback
+    if (monsterPosition.distanceTo(playerPosition) < 0.2 && !ongoingPushback) { 
         teleportPlayer(playerPosition.x, playerPosition.z);
         return;  // Skip movement for this frame
     }
